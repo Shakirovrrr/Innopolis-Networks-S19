@@ -64,7 +64,10 @@ char stackPush(Stack *stack, void *data) {
 }
 
 void *stackPick(Stack *stack) {
-	return stack->top->data;
+	if (stack->top) {
+		return stack->top->data;
+	}
+	return NULL;
 }
 
 void *stackPop(Stack *stack) {
@@ -120,14 +123,15 @@ int stackPopint(Stack *stack) {
 #pragma endregion
 
 void printHelp() {
-	printf("\nList of available commands:\n");
-	printf("\'pick\' -> Pick the top element.\n");
-	printf("\'pop\' -> Pop the top element.\n");
-	printf("\'push\' -> Push the element to the stack. You will be asked for the value.\n");
-	printf("\'new\' -> Create new stack.\n");
-	printf("\'size\' -> Get the stack size.\n");
-	printf("\'isempty\' -> Check for emptiness.\n");
-	printf("\'display\' -> Print entire stack.\n\n");
+	printf("\t\nList of available commands:\n");
+	printf("\t\'pick\' -> Pick the top element.\n");
+	printf("\t\'pop\' -> Pop the top element.\n");
+	printf("\t\'push\' -> Push the element to the stack. You will be asked for the value.\n");
+	printf("\t\'new\' -> Create new stack.\n");
+	printf("\t\'size\' -> Get the stack size.\n");
+	printf("\t\'isempty\' -> Check for emptiness.\n");
+	printf("\t\'display\' -> Print entire stack.\n");
+	printf("\t\'exit\' -> Close session.\n\n");
 }
 
 void displaySatckOfInts(Stack *stack) {
