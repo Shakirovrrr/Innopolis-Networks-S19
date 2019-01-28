@@ -3,6 +3,7 @@
 
 const LPCWSTR PIPENAME = L"\\\\.\\pipe\\StackPipe351";
 
+#define SERVERHELP -2
 #define SERVEREXIT -1
 #define STACKPICK 0
 #define STACKPOP 1
@@ -118,6 +119,17 @@ int stackPopint(Stack *stack) {
 
 #pragma endregion
 
+void printHelp() {
+	printf("\nList of available commands:\n");
+	printf("\'pick\' -> Pick the top element.\n");
+	printf("\'pop\' -> Pop the top element.\n");
+	printf("\'push\' -> Push the element to the stack. You will be asked for the value.\n");
+	printf("\'new\' -> Create new stack.\n");
+	printf("\'size\' -> Get the stack size.\n");
+	printf("\'isempty\' -> Check for emptiness.\n");
+	printf("\'display\' -> Print entire stack.\n\n");
+}
+
 void displaySatckOfInts(Stack *stack) {
 	StackNode *current = stack->top;
 	printf("\nSTACK TOP\n____________\n");
@@ -215,6 +227,11 @@ DWORD WINAPI serverJob(LPVOID lpParam) {
 				displaySatckOfInts(stack);
 				break;
 
+			case SERVERHELP:
+				printf("<Server>:");
+				printHelp();
+				break;
+
 			case SERVEREXIT:
 				printf("<Server>: Server stopped.\n");
 				CloseHandle(hPipe);
@@ -287,6 +304,8 @@ void clientJob(LPVOID lpParam) {
 			requestBuffer[0] = STACKISEMPTY;
 		} else if (lstrcmpiA(inputBuffer, "DISPLAY") == 0) {
 			requestBuffer[0] = STACKDISPLAY;
+		} else if (lstrcmpiA(inputBuffer, "HELP") == 0) {
+			requestBuffer[0] = SERVERHELP;
 		} else if (lstrcmpiA(inputBuffer, "EXIT") == 0) {
 			requestBuffer[0] = SERVEREXIT;
 			CloseHandle(hPipe);
@@ -317,6 +336,9 @@ void clientJob(LPVOID lpParam) {
 }
 
 int main() {
+	printf("Client-server stack.\nRuslan Shakirov, B17-2, Innopolis University, 2019\n");
+	printf("Type \'help\' for the list of commands.\n\n");
+
 	CreateThread(NULL, 0, &serverJob, NULL, 0, NULL);
 	Sleep(1000);
 	clientJob(NULL);
