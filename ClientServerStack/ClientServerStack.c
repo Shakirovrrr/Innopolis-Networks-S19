@@ -1,7 +1,7 @@
 #include <Windows.h>
 #include <stdio.h>
 
-const char *PIPENAME = L"\\\\.\\pipe\\StackPipe351";
+const LPCWSTR PIPENAME = L"\\\\.\\pipe\\StackPipe351";
 
 #define SERVEREXIT -1
 #define STACKPICK 0
@@ -141,8 +141,6 @@ void serverJob(LPVOID lpParam) {
 		ExitThread(-1);
 	}
 
-	printf("Server: Waiting for client...\n");
-
 	BOOL connectionResult = ConnectNamedPipe(hPipe, NULL);
 	if (!connectionResult) {
 		printf("Server: Failed to connect to pipe.\n");
@@ -150,7 +148,13 @@ void serverJob(LPVOID lpParam) {
 		ExitThread(-1);
 	}
 
+	printf("Server: Waiting for client...\n");
+
 	Stack *stack = (Stack*) HeapAlloc(GetProcessHeap(), 0, sizeof(Stack));
+	if (!stack) {
+		printf("Server: Failed to allocate memory for stack.\n");
+		ExitThread(-1);
+	}
 	*stack = emptyStack();
 
 	char requestBuffer[2];
@@ -186,7 +190,7 @@ void serverJob(LPVOID lpParam) {
 				break;
 
 			case STACKSIZE:
-				printf("Server: Stack size: %d\n", stack->size);
+				printf("Server: Stack size: %llu\n", stack->size);
 				break;
 
 			case STACKISEMPTY:
@@ -201,27 +205,60 @@ void serverJob(LPVOID lpParam) {
 			case SERVEREXIT:
 				ExitThread(0);
 			}
+		} else {
+			printf("Server: Failed to read from pipe.\n");
+			ExitThread(-1);
 		}
 	}
 }
 
 void clientJob(LPVOID lpParam) {
+	HANDLE hPipe = CreateFile(PIPENAME, GENERIC_WRITE,
+		FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
+	if (hPipe == INVALID_HANDLE_VALUE || hPipe == NULL) {
+		printf("Client: Failed to connect to pipe.\n");
+		return;
+	}
+
+	printf("Client: Connected to the server.\n");
+
+	char requestBuffer[2] = {0,0};
+	DWORD bytesWritten = 0;
+	char inputBuffer[64];
+	while (1) {
+		printf(" > ");
+		scanf_s("%s", inputBuffer, 64);
+		printf("\n");
+		inputBuffer[63] = '\0';
+
+		if (lstrcmpiA(inputBuffer, "PICK") == 0) {
+			requestBuffer[0] = STACKPICK;
+		} else if (lstrcmpiA(inputBuffer, "POP")) {
+			requestBuffer[0] = STACKPOP;
+		} else if (lstrcmpiA(inputBuffer, "PUSH")) {
+			requestBuffer[0] = STACKPUSH;
+		} else if (lstrcmpiA(inputBuffer, "NEW")) {
+			requestBuffer[0] = STACKNEW;
+		} else if (lstrcmpiA(inputBuffer, "SIZE")) {
+			requestBuffer[0] = STACKSIZE;
+		} else if (lstrcmpiA(inputBuffer, "ISEMPTY")) {
+			requestBuffer[0] = STACKISEMPTY;
+		} else if (lstrcmpiA(inputBuffer, "DISPLAY")) {
+			requestBuffer[0] = STACKDISPLAY;
+		}
+
+		BOOL writeResult = WriteFile(hPipe, requestBuffer, sizeof(char) * 2, &bytesWritten, NULL);
+		if (!writeResult) {
+			printf("Client: Failed to write to pipe.\n");
+			return;
+		}
+	}
 }
 
 int main() {
-	Stack *stack = (Stack*) HeapAlloc(GetProcessHeap(), 0, sizeof(Stack));
-	*stack = emptyStack();
 
-	stackPushInt(stack, 124);
-	stackPushInt(stack, 162);
-
-	printf("%d\n", stackPickInt(stack));
-	printf("%d\n", stackPopint(stack));
-	printf("%d\n", stackPopint(stack));
-	printf("%d\n", stackPopint(stack));
-
-	HeapFree(GetProcessHeap(), 0, stack);
 
 	return 0;
 }
