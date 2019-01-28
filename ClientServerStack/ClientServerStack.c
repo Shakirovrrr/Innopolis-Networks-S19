@@ -3,6 +3,7 @@
 
 const char *PIPENAME = L"\\\\.\\pipe\\StackPipe351";
 
+#define SERVEREXIT -1
 #define STACKPICK 0
 #define STACKPOP 1
 #define STACKPUSH 2
@@ -130,7 +131,7 @@ void displaySatckOfInts(Stack *stack) {
 void serverJob(LPVOID lpParam) {
 	HANDLE hPipe = CreateNamedPipe(
 		PIPENAME,
-		PIPE_ACCESS_DUPLEX,
+		PIPE_ACCESS_INBOUND,
 		PIPE_READMODE_BYTE,
 		1, 0, 0, 0, NULL
 	);
@@ -154,39 +155,52 @@ void serverJob(LPVOID lpParam) {
 
 	char requestBuffer[2];
 	DWORD bytesRead = 0;
-	BOOL readResult = ReadFile(hPipe, requestBuffer, sizeof(char) * 2, &bytesRead, NULL);
 	char stackOpResult = 0;
-	if (readResult) {
-		switch (requestBuffer[0]) {
-		case STACKPICK:
-			printf("Server: Pick -> %d\n", stackPickInt(stack));
-			break;
-		case STACKPOP:
-			printf("Server: Pop -> %d\n", stackPopint(stack));
-			break;
-		case STACKPUSH:
-			stackOpResult = stackPushInt(stack, requestBuffer[1]);
-			if (stackOpResult == -1) {
-				printf("Server: Failed to push.\n");
-			} else {
-				printf("Server: Pushed %d to stack.\n", stackPickInt(stack));
+
+	while (TRUE) {
+		BOOL readResult = ReadFile(hPipe, requestBuffer, sizeof(char) * 2, &bytesRead, NULL);
+
+		if (readResult) {
+			switch (requestBuffer[0]) {
+			case STACKPICK:
+				printf("Server: Pick -> %d\n", stackPickInt(stack));
+				break;
+
+			case STACKPOP:
+				printf("Server: Pop -> %d\n", stackPopint(stack));
+				break;
+
+			case STACKPUSH:
+				stackOpResult = stackPushInt(stack, requestBuffer[1]);
+				if (stackOpResult == -1) {
+					printf("Server: Failed to push.\n");
+				} else {
+					printf("Server: Pushed %d to stack.\n", stackPickInt(stack));
+				}
+				break;
+
+			case STACKNEW:
+				stackClear(stack);
+				*stack = emptyStack();
+				printf("Server: Created new stack.\n");
+				break;
+
+			case STACKSIZE:
+				printf("Server: Stack size: %d\n", stack->size);
+				break;
+
+			case STACKISEMPTY:
+				printf("Server: Stack is %s.", (stack->size > 0 ? "not empty" : "empty"));
+				break;
+
+			case STACKDISPLAY:
+				printf("Server:\n");
+				displaySatckOfInts(stack);
+				break;
+
+			case SERVEREXIT:
+				ExitThread(0);
 			}
-			break;
-		case STACKNEW:
-			stackClear(stack);
-			*stack = emptyStack();
-			printf("Server: Created new stack.\n");
-			break;
-		case STACKSIZE:
-			printf("Server: Stack size: %d\n", stack->size);
-			break;
-		case STACKISEMPTY:
-			printf("Server: Stack is %s.", (stack->size > 0 ? "not empty" : "empty"));
-			break;
-		case STACKDISPLAY:
-			printf("Server:\n");
-			displaySatckOfInts(stack);
-			break;
 		}
 	}
 }
