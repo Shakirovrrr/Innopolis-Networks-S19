@@ -5,7 +5,7 @@ const LPCWSTR PIPENAME = L"\\\\.\\pipe\\StackPipe351";
 
 #define SERVERHELP -2
 #define SERVEREXIT -1
-#define STACKPICK 0
+#define STACKPEEK 0
 #define STACKPOP 1
 #define STACKPUSH 2
 #define STACKNEW 3
@@ -63,7 +63,7 @@ char stackPush(Stack *stack, void *data) {
 	return 0;
 }
 
-void *stackPick(Stack *stack) {
+void *stackPeek(Stack *stack) {
 	if (stack->top) {
 		return stack->top->data;
 	}
@@ -75,7 +75,7 @@ void *stackPop(Stack *stack) {
 		return NULL;
 	}
 
-	void *picked = stackPick(stack);
+	void *picked = stackPeek(stack);
 
 	StackNode *old = stack->top;
 	stack->top = stack->top->prev;
@@ -102,8 +102,8 @@ char stackPushInt(Stack *stack, int val) {
 	return stackPush(stack, data);
 }
 
-int stackPickInt(Stack *stack) {
-	int *picked = (int*) stackPick(stack);
+int stackPeekInt(Stack *stack) {
+	int *picked = (int*) stackPeek(stack);
 	if (!picked) {
 		return -1;
 	}
@@ -124,8 +124,8 @@ int stackPopint(Stack *stack) {
 
 void printHelp() {
 	printf("\t\nList of available commands:\n");
-	printf("\t\'pick\' -> Pick the top element.\n");
-	printf("\t\'pop\' -> Pop the top element.\n");
+	printf("\t\'peek\' -> Peek the top element. Returns \'-1\' on empty stack.\n");
+	printf("\t\'pop\' -> Pop the top element. Returns \'-1\' on empty stack.\n");
 	printf("\t\'push\' -> Push the element to the stack. You will be asked for the value.\n");
 	printf("\t\'new\' -> Create new stack.\n");
 	printf("\t\'size\' -> Get the stack size.\n");
@@ -195,8 +195,8 @@ DWORD WINAPI ServerJob(LPVOID lpParam) {
 
 		if (readResult) {
 			switch (requestBuffer[0]) {
-			case STACKPICK:
-				printf("<Server>: Pick -> %d\n", stackPickInt(stack));
+			case STACKPEEK:
+				printf("<Server>: Peek -> %d\n", stackPeekInt(stack));
 				break;
 
 			case STACKPOP:
@@ -208,7 +208,7 @@ DWORD WINAPI ServerJob(LPVOID lpParam) {
 				if (stackOpResult == -1) {
 					printf("<Server>: -> Failed to push.\n");
 				} else {
-					printf("<Server>: -> Pushed %d to stack.\n", stackPickInt(stack));
+					printf("<Server>: -> Pushed %d to stack.\n", stackPeekInt(stack));
 				}
 				break;
 
@@ -292,14 +292,18 @@ void ClientJob(LPVOID lpParam) {
 		printf("\n");
 		inputBuffer[63] = '\0';
 
-		if (lstrcmpiA(inputBuffer, "PICK") == 0) {
-			requestBuffer[0] = STACKPICK;
+		if (lstrcmpiA(inputBuffer, "PEEK") == 0) {
+			requestBuffer[0] = STACKPEEK;
 		} else if (lstrcmpiA(inputBuffer, "POP") == 0) {
 			requestBuffer[0] = STACKPOP;
 		} else if (lstrcmpiA(inputBuffer, "PUSH") == 0) {
 			requestBuffer[0] = STACKPUSH;
-			printf("Value to push? > ");
-			scanf_s("%d", &requestBuffer[1]);
+			printf("<Client>: Value to push? > ");
+			int parsedVal = scanf_s("%d", &requestBuffer[1]);
+			if (!parsedVal) {
+				printf("<Client>: The value should be an integer.\n");
+				continue;
+			}
 		} else if (lstrcmpiA(inputBuffer, "NEW") == 0) {
 			requestBuffer[0] = STACKNEW;
 		} else if (lstrcmpiA(inputBuffer, "SIZE") == 0) {
