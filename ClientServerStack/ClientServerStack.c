@@ -239,6 +239,8 @@ DWORD WINAPI ServerJob(LPVOID lpParam) {
 			case SERVEREXIT:
 				printf("<Server>: Server stopped.\n");
 				CloseHandle(hPipe);
+				stackClear(stack);
+				HeapFree(GetProcessHeap(), 0, stack);
 				ExitThread(0);
 			}
 
@@ -248,12 +250,16 @@ DWORD WINAPI ServerJob(LPVOID lpParam) {
 			if (!writeResult) {
 				printf("<Server>: Failed to send respont to client.\n");
 				CloseHandle(hPipe);
+				stackClear(stack);
+				HeapFree(GetProcessHeap(), 0, stack);
 				ExitThread(-1);
 			}
 
 		} else {
 			printf("<Server>: Failed to read from pipe.\n");
 			CloseHandle(hPipe);
+			stackClear(stack);
+			HeapFree(GetProcessHeap(), 0, stack);
 			ExitThread(-1);
 		}
 	}
@@ -348,7 +354,7 @@ int main() {
 	printf("Type \'help\' for the list of commands.\n\n");
 
 	CreateThread(NULL, 0, &ServerJob, NULL, 0, NULL);
-	Sleep(1000);
+	Sleep(500);
 	ClientJob(NULL);
 
 	return 0;
