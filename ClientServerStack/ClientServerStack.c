@@ -144,7 +144,7 @@ void displaySatckOfInts(Stack *stack) {
 	printf("____________\nSTACK BOTTOM\n\n");
 }
 
-DWORD WINAPI serverJob(LPVOID lpParam) {
+DWORD WINAPI ServerJob(LPVOID lpParam) {
 	HANDLE hPipe = CreateNamedPipe(
 		PIPENAME,
 		PIPE_ACCESS_DUPLEX,
@@ -259,7 +259,7 @@ DWORD WINAPI serverJob(LPVOID lpParam) {
 	}
 }
 
-void clientJob(LPVOID lpParam) {
+void ClientJob(LPVOID lpParam) {
 	HANDLE hPipe = CreateFile(PIPENAME, GENERIC_READ | GENERIC_WRITE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -343,9 +343,9 @@ int main() {
 	printf("Client-server stack.\nRuslan Shakirov, B17-2, Innopolis University, 2019\n");
 	printf("Type \'help\' for the list of commands.\n\n");
 
-	CreateThread(NULL, 0, &serverJob, NULL, 0, NULL);
+	CreateThread(NULL, 0, &ServerJob, NULL, 0, NULL);
 	Sleep(1000);
-	clientJob(NULL);
+	ClientJob(NULL);
 
 	return 0;
 }
