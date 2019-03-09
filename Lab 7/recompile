@@ -1,0 +1,7 @@
+#!/bin/sh
+
+gcc -c networking.c
+gcc -c server.c
+gcc networking.o server.o -o server.out
+
+rm networking.o server.o
