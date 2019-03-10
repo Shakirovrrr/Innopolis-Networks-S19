@@ -94,10 +94,14 @@ UpgradeLog*.htm
 *.idea/
 *.sln.iml
 
-# Visual Studio Code Files
+# Visual Studio Code files
 *.vscode/
 
 # Binary and executables
 *.exe
 *.o
 *.out
+
+# CMake files
+*CMakeLists.txt
+*cmake-build-debug/
