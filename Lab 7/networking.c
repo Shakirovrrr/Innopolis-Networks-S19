@@ -1,5 +1,15 @@
 #include "networking.h"
 
+void get_ip_port(int sockfd, int *port, char **ipaddr) {
+	struct sockaddr_storage address;
+	socklen_t len;
+	getpeername(sockfd, (struct sockaddr *) &address, &len);
+
+	struct sockaddr_in *addr = (struct sockaddr_in *) &address;
+	*port = ntohs(addr->sin_port);
+	inet_ntop(AF_INET, &addr->sin_addr, (char *) ipaddr, sizeof(ipaddr) * INET_ADDRSTRLEN);
+}
+
 int init_tcp_server() {
 	int socket_listen = 0, socket_talk = 0;
 	socket_listen = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -57,7 +67,7 @@ int recvsend(int conn_socket, void *readbuf, size_t readlen, void *sendbuf, size
 		return -1;
 	}
 
-	int result = 0;
+	long int result = 0;
 
 	result = read(conn_socket, readbuf, readlen);
 	if (result < 0) {
@@ -80,7 +90,7 @@ int sendrecv(int conn_socket, void *sendbuf, size_t sendlen, void *readbuf, size
 		return -1;
 	}
 
-	int result = 0;
+	long int result = 0;
 
 	result = send(conn_socket, sendbuf, sendlen, 0);
 	if (result < 0) {
@@ -95,4 +105,36 @@ int sendrecv(int conn_socket, void *sendbuf, size_t sendlen, void *readbuf, size
 	}
 
 	return 0;
+}
+
+int ping(int conn_socket, int n) {
+	int success = 0;
+	int sockfd = 0;
+	int result = 0;
+
+	int sendbuf = 0, readbuf = -1;
+	for (size_t i = 0; i < n; i++) {
+		sockfd = setup_communication(conn_socket);
+		if (sockfd < 0) {
+			printf("Cannot ping.\n");
+			continue;
+		}
+
+		result = sendrecv(sockfd, &sendbuf, sizeof(int), &readbuf, sizeof(int));
+		if (result < 0) {
+			printf("Cannot send/recieve message.\n");
+			close(sockfd);
+			continue;
+		}
+
+		if (readbuf == 0) {
+			success++;
+			printf("Sent and recieved %lu bytes.\n", sizeof(int));
+		}
+
+		close(sockfd);
+		readbuf = -1;
+	}
+
+	return success;
 }
