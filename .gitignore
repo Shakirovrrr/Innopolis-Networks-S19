@@ -91,7 +91,7 @@ UpgradeLog*.XML
 UpgradeLog*.htm
 
 # JetBrains Rider
-.idea/
+*.idea/
 *.sln.iml
 
 # Visual Studio Code Files
