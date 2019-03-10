@@ -11,7 +11,7 @@ void get_ip_port(int sockfd, int *port, char **ipaddr) {
 }
 
 int init_tcp_server() {
-	int socket_listen = 0, socket_talk = 0;
+	int socket_listen = 0;
 	socket_listen = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (socket_listen < 0) {
@@ -97,7 +97,7 @@ int sendrecv(int conn_socket, void *sendbuf, size_t sendlen, void *readbuf, size
 		perror("Send error.\n");
 		return -1;
 	}
-	
+
 	result = read(conn_socket, readbuf, readlen);
 	if (result < 0) {
 		perror("Read error.\n");
@@ -109,30 +109,28 @@ int sendrecv(int conn_socket, void *sendbuf, size_t sendlen, void *readbuf, size
 
 int ping(int conn_socket, int n) {
 	int success = 0;
-	int sockfd = 0;
 	int result = 0;
 
 	int sendbuf = 0, readbuf = -1;
 	for (size_t i = 0; i < n; i++) {
-		sockfd = setup_communication(conn_socket);
-		if (sockfd < 0) {
+		if (conn_socket < 0) {
 			printf("Cannot ping.\n");
 			continue;
 		}
 
-		result = sendrecv(sockfd, &sendbuf, sizeof(int), &readbuf, sizeof(int));
+		result = sendrecv(conn_socket, &sendbuf, sizeof(int), &readbuf, sizeof(int));
 		if (result < 0) {
 			printf("Cannot send/recieve message.\n");
-			close(sockfd);
+			readbuf = -1;
 			continue;
 		}
 
 		if (readbuf == 0) {
 			success++;
 			printf("Sent and recieved %lu bytes.\n", sizeof(int));
+			readbuf = -1;
 		}
 
-		close(sockfd);
 		readbuf = -1;
 	}
 
