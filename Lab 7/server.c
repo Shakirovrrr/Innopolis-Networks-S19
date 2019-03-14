@@ -16,6 +16,7 @@ void *node_handler(void *args) {
 	char ipaddr[INET_ADDRSTRLEN];
 	get_ip_port(conn_socket, &port, (char **) ipaddr);
 	printf("Node %s:%d left.\n", ipaddr, port);
+	close(conn_socket);
 }
 
 void *connections_handler() {
@@ -33,7 +34,6 @@ void *connections_handler() {
 		int readbuf = 0;
 		int sendbuf = 0;
 		result = recvsend(sockfd, (void *) &readbuf, sizeof(int), &sendbuf, sizeof(int));
-		close(sockfd);
 		if (result < 0) {
 			perror("Cannot recieve/send message.\n");
 			//exit(EXIT_FAILURE);
@@ -54,6 +54,10 @@ void *connections_handler() {
 	}
 }
 
+void *node_job() {
+
+}
+
 int main(int argc, char *argv[]) {
 //	nodepool = calloc(10, sizeof(int));
 //	nnodes = 0;
@@ -63,6 +67,11 @@ int main(int argc, char *argv[]) {
 		if (strcmp(argv[1], "-main") == 0) {
 			pthread_t handler_thread = 0;
 			pthread_create(&handler_thread, NULL, connections_handler, NULL);
+		} else {
+			struct sockaddr_in addr;
+			if (convert_address(argv[1], &addr) < 0){
+				perror("Invalid address.\n");
+			}
 		}
 	}
 
