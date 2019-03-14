@@ -10,6 +10,17 @@ void get_ip_port(int sockfd, int *port, char **ipaddr) {
 	inet_ntop(AF_INET, &addr->sin_addr, (char *) ipaddr, sizeof(ipaddr) * INET_ADDRSTRLEN);
 }
 
+int convert_address(char *ipaddress, struct sockaddr_in *addr) {
+	addr->sin_family = AF_INET;
+	addr->sin_port = SERVER_PORT;
+
+	int result;
+	result = inet_pton(AF_INET, ipaddress, &addr->sin_addr);
+	if (result < 0) {
+		return -1;
+	}
+}
+
 int init_tcp_server() {
 	int socket_listen = 0;
 	socket_listen = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
