@@ -1,5 +1,14 @@
 #include "networking.h"
 
+unsigned int get_uint_ip(int sockfd) {
+	struct sockaddr_storage address;
+	socklen_t len;
+	getpeername(sockfd, (struct sockaddr *) &address, &len);
+
+	struct sockaddr_in *addr = (struct sockaddr_in *) &address;
+	return addr->sin_addr.s_addr;
+}
+
 void get_ip_port(int sockfd, int *port, char **ipaddr) {
 	struct sockaddr_storage address;
 	socklen_t len;

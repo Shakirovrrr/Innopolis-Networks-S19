@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
+
 #include "networking.h"
+#include "linkedlist.h"
+
+LinkedList *nodepool;
 
 void *node_handler(void *args) {
 	int conn_socket = *((int *) args);
 	int alive = 1;
+
 
 	while (alive) {
 		alive = ping(conn_socket, 1);
@@ -17,11 +22,15 @@ void *node_handler(void *args) {
 	get_ip_port(conn_socket, &port, (char **) ipaddr);
 	printf("Node %s:%d left.\n", ipaddr, port);
 	close(conn_socket);
+
+
 }
 
 void *connections_handler() {
 	int master_socket = init_tcp_server();
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
 	while (1) {
 		int sockfd = setup_communication(master_socket);
 		if (sockfd < 0) {
@@ -50,8 +59,10 @@ void *connections_handler() {
 			printf("Got new node! IP: %s, port: %d", ipaddress, port);
 			pthread_t new_thread;
 			pthread_create(&new_thread, NULL, node_handler, (void *) &sockfd);
+			insertVal(nodepool, 0, get_uint_ip(sockfd));
 		}
 	}
+#pragma clang diagnostic pop
 }
 
 void *node_job() {
@@ -59,9 +70,7 @@ void *node_job() {
 }
 
 int main(int argc, char *argv[]) {
-//	nodepool = calloc(10, sizeof(int));
-//	nnodes = 0;
-//	poolsize = 10;
+	nodepool = newList();
 
 	if (argc > 1) {
 		if (strcmp(argv[1], "-main") == 0) {
@@ -69,7 +78,7 @@ int main(int argc, char *argv[]) {
 			pthread_create(&handler_thread, NULL, connections_handler, NULL);
 		} else {
 			struct sockaddr_in addr;
-			if (convert_address(argv[1], &addr) < 0){
+			if (convert_address(argv[1], &addr) < 0) {
 				perror("Invalid address.\n");
 			}
 		}

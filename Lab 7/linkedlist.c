@@ -1,0 +1,137 @@
+//
+// Created by Ruslani on 15-Mar-19.
+//
+
+#include "linkedlist.h"
+
+Node *__newNode(unsigned int val) {
+	Node *new = (Node *) malloc(sizeof(Node));
+	if (!new) return 0;
+
+	new->val = val;
+	new->prev = 0;
+	new->next = 0;
+
+	return new;
+}
+
+LinkedList *newList() {
+	LinkedList *new = (LinkedList *) malloc(sizeof(LinkedList));
+	if (!new) return 0;
+
+	new->size = 0;
+	new->head = 0;
+	new->tail = 0;
+
+	return new;
+}
+
+void __initList(LinkedList *list, Node *new) {
+	new->prev = 0;
+	new->next = 0;
+
+	list->head = new;
+	list->tail = new;
+	list->size++;
+}
+
+Node *__jumpToNode(LinkedList *list, size_t ix) {
+	Node *current = list->head;
+
+	for (int i = 0; i < ix; ++i) {
+		current = current->next;
+	}
+
+	return current;
+}
+
+void __appendNode(LinkedList *list, Node *val) {
+	Node *end = list->tail;
+	val->prev = end;
+	end->next = val;
+
+	list->tail = val;
+	list->size++;
+}
+
+void __prependNode(LinkedList *list, Node *val) {
+	Node *begin = list->head;
+	val->next = begin;
+	begin->prev = val;
+
+	list->head = val;
+	list->size++;
+}
+
+char insertVal(LinkedList *list, size_t ix, unsigned int val) {
+	if ((ix > list->size && list->size != 0) || ix < 0) return 1;
+
+	Node *new = __newNode(val);
+	if (!new) return 1;
+
+	if (list->size == 0) {
+		__initList(list, new);
+		return 0;
+	}
+
+	if (ix == 0) {
+		__prependNode(list, new);
+		return 0;
+	}
+
+	if (ix == list->size) {
+		__appendNode(list, new);
+		return 0;
+	}
+
+	Node *current = __jumpToNode(list, ix);
+	new->prev = current->prev;
+	new->next = current;
+	current->prev->next = new;
+	current->prev = new;
+	list->size++;
+
+	return 0;
+}
+
+char deleteVal(LinkedList *list, size_t ix) {
+	if ((ix >= list->size && list->size != 0) || ix < 0) return 1;
+
+	Node *current;
+	if (ix == 0) {
+		current = list->head;
+		current->next->prev = 0;
+		list->head = current->next;
+	} else if (ix == list->size - 1) {
+		current = list->tail;
+		current->prev->next = 0;
+		list->tail = current->prev;
+	} else {
+		current = __jumpToNode(list, ix);
+		current->prev->next = current->next;
+		current->next->prev = current->prev;
+	}
+
+	free(current);
+	list->size--;
+
+	return 0;
+}
+
+unsigned int getVal(LinkedList *list, size_t ix) {
+	if ((ix >= list->size && list->size != 0) || ix < 0) return 0;
+
+	Node *current = __jumpToNode(list, ix);
+
+	return current->val;
+}
+
+size_t findVal(LinkedList *list, unsigned int val) {
+	Node *current = list->head;
+
+	for (size_t i = 0; i < list->size; ++i, current = current->next) {
+		if (current->val == val) {
+			return i;
+		}
+	}
+}
