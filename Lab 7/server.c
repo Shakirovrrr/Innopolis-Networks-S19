@@ -23,7 +23,8 @@ void *node_handler(void *args) {
 	printf("Node %s:%d left.\n", ipaddr, port);
 	close(conn_socket);
 
-
+	unsigned int ipuint32 = get_uint_ip(conn_socket);
+	deleteVal(nodepool, findVal(nodepool, ipuint32));
 }
 
 void *connections_handler() {
@@ -65,24 +66,29 @@ void *connections_handler() {
 #pragma clang diagnostic pop
 }
 
-void *node_job() {
+void *node_job(void *args) {
 
 }
 
 int main(int argc, char *argv[]) {
 	nodepool = newList();
 
+	pthread_t handler_thread = 0;
+	pthread_t node_thread = 0;
 	if (argc > 1) {
 		if (strcmp(argv[1], "-main") == 0) {
-			pthread_t handler_thread = 0;
 			pthread_create(&handler_thread, NULL, connections_handler, NULL);
 		} else {
-			struct sockaddr_in addr;
-			if (convert_address(argv[1], &addr) < 0) {
+			struct sockaddr_in *addr = malloc(sizeof(struct sockaddr_in));
+			if (convert_address(argv[1], addr) < 0) {
 				perror("Invalid address.\n");
 			}
+			pthread_create(&node_thread, NULL, node_job, (void *) addr);
 		}
 	}
+
+	pthread_join(node_thread, NULL);
+	pthread_join(handler_thread, NULL);
 
 	return 0;
 }
