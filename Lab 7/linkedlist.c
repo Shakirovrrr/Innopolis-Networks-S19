@@ -4,9 +4,9 @@
 
 #include "linkedlist.h"
 
-Node *__newNode(unsigned int val) {
+Node *__newNode(void *val) {
 	Node *new = (Node *) malloc(sizeof(Node));
-	if (!new) return 0;
+	if (!new) return NULL;
 
 	new->val = val;
 	new->prev = 0;
@@ -17,21 +17,21 @@ Node *__newNode(unsigned int val) {
 
 LinkedList *newList() {
 	LinkedList *new = (LinkedList *) malloc(sizeof(LinkedList));
-	if (!new) return 0;
+	if (!new) return NULL;
 
 	new->size = 0;
-	new->head = 0;
-	new->tail = 0;
+	new->head = NULL;
+	new->tail = NULL;
 
 	return new;
 }
 
-void __initList(LinkedList *list, Node *new) {
-	new->prev = 0;
-	new->next = 0;
+void __initList(LinkedList *list, Node *newNode) {
+	newNode->prev = NULL;
+	newNode->next = NULL;
 
-	list->head = new;
-	list->tail = new;
+	list->head = newNode;
+	list->tail = newNode;
 	list->size++;
 }
 
@@ -63,7 +63,7 @@ void __prependNode(LinkedList *list, Node *val) {
 	list->size++;
 }
 
-char insertVal(LinkedList *list, size_t ix, unsigned int val) {
+char insertVal(LinkedList *list, size_t ix, void *val) {
 	if ((ix > list->size && list->size != 0) || ix < 0) return 1;
 
 	Node *new = __newNode(val);
@@ -118,7 +118,7 @@ char deleteVal(LinkedList *list, size_t ix) {
 	return 0;
 }
 
-unsigned int getVal(LinkedList *list, size_t ix) {
+void *getVal(LinkedList *list, size_t ix) {
 	if ((ix >= list->size && list->size != 0) || ix < 0) return 0;
 
 	Node *current = __jumpToNode(list, ix);
@@ -126,11 +126,11 @@ unsigned int getVal(LinkedList *list, size_t ix) {
 	return current->val;
 }
 
-size_t findVal(LinkedList *list, unsigned int val) {
+size_t findVal(LinkedList *list, void *val, size_t valsize) {
 	Node *current = list->head;
 
 	for (size_t i = 0; i < list->size; ++i, current = current->next) {
-		if (current->val == val) {
+		if (memcmp(val, current->val, valsize) == 0) {
 			return i;
 		}
 	}

@@ -6,9 +6,10 @@
 #define LINKEDLIST_H
 
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct Node {
-	unsigned int val;
+	void *val;
 	struct Node *next;
 	struct Node *prev;
 } Node;
@@ -21,12 +22,12 @@ typedef struct LinkedList {
 
 LinkedList *newList();
 
-char insertVal(LinkedList *list, size_t ix, unsigned int val);
+char insertVal(LinkedList *list, size_t ix, void *val);
 
 char deleteVal(LinkedList *list, size_t ix);
 
-unsigned int getVal(LinkedList *list, size_t ix);
+void *getVal(LinkedList *list, size_t ix);
 
-size_t findVal(LinkedList *list, unsigned int val);
+size_t findVal(LinkedList *list, void *val, size_t valsize);
 
 #endif //LINKEDLIST_H
