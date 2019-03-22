@@ -15,7 +15,7 @@ Node *__newNode(void *val) {
 	return new;
 }
 
-LinkedList *newList() {
+LinkedList *newLinkedList() {
 	LinkedList *new = (LinkedList *) malloc(sizeof(LinkedList));
 	if (!new) return NULL;
 

@@ -13,7 +13,7 @@
 
 unsigned int get_uint_ip(int sockfd);
 
-void get_ip_port(int sockfd, int *port, char *ipaddr[INET_ADDRSTRLEN]);
+void get_ip_port(int sockfd, int *port, char ipaddr[INET_ADDRSTRLEN]);
 
 int convert_address(char *ipaddress, struct sockaddr_in *addr);
 

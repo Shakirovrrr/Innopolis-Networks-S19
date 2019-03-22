@@ -9,14 +9,14 @@ unsigned int get_uint_ip(int sockfd) {
 	return addr->sin_addr.s_addr;
 }
 
-void get_ip_port(int sockfd, int *port, char **ipaddr) {
+void get_ip_port(int sockfd, int *port, char *ipaddr) {
 	struct sockaddr_storage address;
 	socklen_t len;
 	getpeername(sockfd, (struct sockaddr *) &address, &len);
 
 	struct sockaddr_in *addr = (struct sockaddr_in *) &address;
 	*port = ntohs(addr->sin_port);
-	inet_ntop(AF_INET, &addr->sin_addr, (char *) ipaddr, sizeof(ipaddr) * INET_ADDRSTRLEN);
+	inet_ntop(AF_INET, &addr->sin_addr, ipaddr, sizeof(ipaddr) * INET_ADDRSTRLEN);
 }
 
 int convert_address(char *ipaddress, struct sockaddr_in *addr) {

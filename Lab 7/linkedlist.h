@@ -20,7 +20,7 @@ typedef struct LinkedList {
 	size_t size;
 } LinkedList;
 
-LinkedList *newList();
+LinkedList *newLinkedList();
 
 char insertVal(LinkedList *list, size_t ix, void *val);
 
