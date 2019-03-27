@@ -17,7 +17,7 @@ void get_ip_port(int sockfd, int *port, char ipaddr[INET_ADDRSTRLEN]);
 
 int convert_address(char *ipaddress, struct sockaddr_in *addr);
 
-int init_tcp_server();
+int init_tcp_server(in_port_t port);
 
 int setup_communication(int conn_socket);
 

@@ -30,7 +30,7 @@ int convert_address(char *ipaddress, struct sockaddr_in *addr) {
 	}
 }
 
-int init_tcp_server() {
+int init_tcp_server(in_port_t port) {
 	int socket_listen = 0;
 	socket_listen = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -42,7 +42,7 @@ int init_tcp_server() {
 	struct sockaddr_in addr_resp;
 
 	addr_resp.sin_family = AF_INET;
-	addr_resp.sin_port = SERVER_PORT;
+	addr_resp.sin_port = port;
 	addr_resp.sin_addr.s_addr = INADDR_ANY;
 
 	int result = 0;
