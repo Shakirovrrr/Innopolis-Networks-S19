@@ -71,7 +71,11 @@ void download_file(NodeFile node_file) {
 		return;
 	}
 
-	FILE *file = fopen(node_file.name, "w");
+	char filepath[FILENAME_LEN * 2];
+	filepath[0] = '\0';
+	strcat(filepath, shared_dir);
+	strcat(filepath, node_file.name);
+	FILE *file = fopen(filepath, "w");
 	char wordbuf[WORD_LEN];
 	for (int i = 0; i < wordcount; ++i) {
 		result = recv(sock_talk, wordbuf, sizeof(wordbuf), 0);
@@ -86,7 +90,11 @@ void *file_request_handler(void *args) {
 	int sock_talk = request.sockfd;
 	ssize_t result = 0;
 
-	FILE *file = fopen(request.filename, "r");
+	char filepath[FILENAME_LEN * 2];
+	filepath[0] = '\0';
+	strcat(filepath, shared_dir);
+	strcat(filepath, request.filename);
+	FILE *file = fopen(filepath, "r");
 	if (!file) {
 		int errnum = -1;
 		result = send(sock_talk, &errnum, sizeof(int), 0);
@@ -288,6 +296,12 @@ void *incoming_handler() {
 	pthread_create(&syncer_thread, NULL, syncer, NULL);
 
 	int in_sock = init_tcp_server(main_port);
+
+	char addrstr[INET_ADDRSTRLEN];
+	int portval;
+	get_ip_port(in_sock, &portval, addrstr);
+	printf("Running on %s:%d\n", addrstr, portval);
+
 	struct sockaddr_storage their_addr;
 	socklen_t addr_len;
 	int talk_sock = 0;
@@ -298,7 +312,7 @@ void *incoming_handler() {
 	while (running) {
 		talk_sock = accept(in_sock, (struct sockaddr *) &their_addr, &addr_len);
 		if (talk_sock < 0) {
-			perror("Cannot create talk socket.\n");
+			//perror("Cannot create talk socket.\n");
 			continue;
 		}
 
@@ -346,14 +360,20 @@ void *incoming_handler() {
 }
 
 void retrieve_file(char filename[FILENAME_LEN]) {
-	FILE *file = fopen(filename, "r");
+	char filepath[FILENAME_LEN * 2];
+	filepath[0] = '\0';
+	strcat(filepath, shared_dir);
+	strcat(filepath, filename);
+	printf("%s\n", filepath);
+
+	FILE *file = fopen(filepath, "r");
 	char printbuf[WORD_LEN];
 	if (file) {
-		printf("<<<<< FILE BEGIN >>>>>");
-		while (fscanf(file, "%s", printbuf)) {
+		printf("\n<<<<< FILE BEGIN >>>>>\n");
+		while (fscanf(file, "%s", printbuf) == 1) {
 			printf("%s ", printbuf);
 		}
-		printf("<<<<<< FILE END >>>>>>");
+		printf("\n<<<<<< FILE END >>>>>>\n");
 		return;
 	}
 
@@ -363,16 +383,16 @@ void retrieve_file(char filename[FILENAME_LEN]) {
 		if (strcmp(nodeFile.name, filename) == 0) {
 			download_file(nodeFile);
 
-			file = fopen(filename, "r");
+			file = fopen(filepath, "r");
 			if (!file) {
 				printf("Sorry, no file today.\n");
 			}
 
-			printf("<<<<< FILE BEGIN >>>>>");
-			while (fscanf(file, "%s", printbuf)) {
+			printf("\n<<<<< FILE BEGIN >>>>>\n");
+			while (fscanf(file, "%s", printbuf) == 1) {
 				printf("%s ", printbuf);
 			}
-			printf("<<<<<< FILE END >>>>>>");
+			printf("\n<<<<<< FILE END >>>>>>\n");
 
 			return;
 		}
@@ -402,6 +422,8 @@ int main(int argc, char *argv[]) {
 	printf("Files directory to share: ? ");
 	scanf("%s", shared_dir);
 	printf("\n");
+
+	strcat(shared_dir, "/");
 
 	char decided = 0;
 	while (!decided) {
@@ -433,8 +455,9 @@ int main(int argc, char *argv[]) {
 	nodepool = newLinkedList();
 	filepool = newLinkedList();
 
-	pthread_create(&listening_thread, NULL, user_repl, NULL);
+	pthread_t repl_thread;
 	pthread_create(&listening_thread, NULL, incoming_handler, NULL);
+	pthread_create(&repl_thread, NULL, user_repl, NULL);
 	pthread_join(listening_thread, NULL);
 
 	return 0;
