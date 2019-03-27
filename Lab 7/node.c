@@ -231,6 +231,11 @@ void send_sync(int sync_sock, NetworkNode node) {
 	long int result = 0;
 	int message = NODE_SYNC;
 	result = send(sync_sock, &message, sizeof(message), 0);
+	if (result < 0) {
+		perror("Cannot send message.\n");
+		remove_inactive_node(node);
+		return;
+	}
 
 	message = -1;
 	result = recv(sync_sock, &message, sizeof(message), 0);
@@ -259,7 +264,7 @@ void send_sync(int sync_sock, NetworkNode node) {
 
 }
 
-void *syncer(void *args) {
+void *syncer() {
 	signal(SIGINT, gently_shitdown);
 
 	int sync_sock = 0;
@@ -276,7 +281,7 @@ void *syncer(void *args) {
 	}
 }
 
-void *incoming_handler(void *args) {
+void *incoming_handler() {
 	signal(SIGINT, gently_shitdown);
 	running = 1;
 
@@ -342,19 +347,54 @@ void *incoming_handler(void *args) {
 
 void retrieve_file(char filename[FILENAME_LEN]) {
 	FILE *file = fopen(filename, "r");
-	if (!file) {
-
+	char printbuf[WORD_LEN];
+	if (file) {
+		printf("<<<<< FILE BEGIN >>>>>");
+		while (fscanf(file, "%s", printbuf)) {
+			printf("%s ", printbuf);
+		}
+		printf("<<<<<< FILE END >>>>>>");
+		return;
 	}
+
+	NodeFile nodeFile;
+	for (size_t i = 0; i < filepool->size; ++i) {
+		nodeFile = *((NodeFile *) getVal(filepool, i));
+		if (strcmp(nodeFile.name, filename) == 0) {
+			download_file(nodeFile);
+
+			file = fopen(filename, "r");
+			if (!file) {
+				printf("Sorry, no file today.\n");
+			}
+
+			printf("<<<<< FILE BEGIN >>>>>");
+			while (fscanf(file, "%s", printbuf)) {
+				printf("%s ", printbuf);
+			}
+			printf("<<<<<< FILE END >>>>>>");
+
+			return;
+		}
+	}
+
+	printf("Sorry, no file today.\n");
 }
 
-void *user_repl(void *args) {
+void *user_repl() {
 	while (running) {
-		printf("File to retrieve: ? ");
-		char fileretr[FILENAME_LEN];
-		scanf("%s", fileretr);
+		printf("Command/file: ? ");
+		char command[FILENAME_LEN];
+
+		if (strcmp(command, "exit") == 0) {
+			gently_shitdown(SIGINT);
+			return NULL;
+		}
+
+		scanf("%s", command);
 		printf("We will try...\n");
 
-
+		retrieve_file(command);
 	}
 }
 
@@ -393,6 +433,7 @@ int main(int argc, char *argv[]) {
 	nodepool = newLinkedList();
 	filepool = newLinkedList();
 
+	pthread_create(&listening_thread, NULL, user_repl, NULL);
 	pthread_create(&listening_thread, NULL, incoming_handler, NULL);
 	pthread_join(listening_thread, NULL);
 
