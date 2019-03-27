@@ -19,6 +19,21 @@ void get_ip_port(int sockfd, int *port, char *ipaddr) {
 	inet_ntop(AF_INET, &addr->sin_addr, ipaddr, sizeof(ipaddr) * INET_ADDRSTRLEN);
 }
 
+void get_my_ip(int *port, char *ipaddr) {
+	int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	struct sockaddr_in addr;
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;
+	addr.sin_port = 0;
+
+	bind(sockfd, (const struct sockaddr *) &addr, sizeof(addr));
+
+	get_ip_port(sockfd, port, ipaddr);
+
+	close(sockfd);
+}
+
 int convert_address(char *ipaddress, struct sockaddr_in *addr) {
 	addr->sin_family = AF_INET;
 	addr->sin_port = SERVER_PORT;

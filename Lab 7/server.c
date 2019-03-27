@@ -5,18 +5,18 @@
 
 #include "networking.h"
 #include "linkedlist.h"
+#include "common.h"
 
-#define NODE_FILE_REQUEST 0
-#define NODE_SYNC 1
-
-#define FILENAME_LEN 24
-
-char node_name[32];
+char node_name[NODENAME_LEN];
 pthread_t listening_thread, syncer_thread;
 char running;
 
 LinkedList *nodepool;
 LinkedList *filepool;
+
+void form_node_msg(char *msg, NetworkNode node) {
+	sprintf(msg, "%s:%s:%d", node.name, node.ipaddr, node.port);
+}
 
 void gently_shitdown(int signum) {
 	running = 0;
@@ -24,9 +24,30 @@ void gently_shitdown(int signum) {
 }
 
 void *file_request_handler(void *args) {
-	int talk_sock = *((int *) args);
+	struct FileRequest request = *((struct FileRequest *) args);
+	int talk_sock = request.sockfd;
 	ssize_t result = 0;
-	// TODO File sender
+
+	FILE *file = fopen(request.filename, "r");
+	if (!file) {
+		int errnum = -1;
+		result = send(talk_sock, &errnum, sizeof(int), 0);
+		close(talk_sock);
+		pthread_exit(NULL);
+	}
+
+	unsigned int wordcount = 0;
+	char wordbuf[WORD_LEN];
+	while ((result = fscanf(file, "%s", wordbuf)) != 1) wordcount++;
+	rewind(file);
+	result = send(talk_sock, &wordcount, sizeof(unsigned int), 0);
+	for (int i = 0; i < wordcount; ++i) {
+		fscanf(file, "%s", wordbuf);
+		result = send(talk_sock, &wordbuf, sizeof(wordbuf), 0);
+	}
+	// FIXME Errors are not being handled!!!11!!11
+
+	close(talk_sock); // FIXME Should I close it?
 }
 
 void *sync_handler(void *args) {
@@ -39,32 +60,29 @@ void *sync_handler(void *args) {
 
 	if (result < 0) {
 		perror("Can't send signal.\n");
-		exit(EXIT_FAILURE);
+		pthread_exit(NULL);
 	}
 
-	char sendbuf[512];
+	char sendbuf[SENDBUF_LEN];
 	char ipstr[INET_ADDRSTRLEN];
 	int portval;
 	unsigned int printf_offset = 0;
-	get_ip_port(talk_sock, &portval, ipstr);
-	printf_offset += sprintf(sendbuf, "%s:%s:%d:", node_name, ipstr, portval);
+	get_my_ip(&portval, ipstr);
+	printf_offset += sprintf(sendbuf, "%s:%s:%d:[", node_name, ipstr, portval);
 
 	char filename[FILENAME_LEN];
-	if (filepool->size > 0) {
-		memcpy(filename, getVal(filepool, 0), sizeof(filename));
-		printf_offset += sprintf(sendbuf + printf_offset, "%s", filename);
-	}
-	for (size_t i = 1; i < filepool->size; ++i) {
+	for (size_t i = 0; i < filepool->size; ++i) {
 		memcpy(filename, getVal(filepool, i), sizeof(filename));
 		printf_offset += sprintf(sendbuf + printf_offset,
-		                         ",%s", filename);
+		                         "%s,", filename);
 	}
+	printf_offset += sprintf(sendbuf + printf_offset - 1, "]");
 
 	result = send(talk_sock, sendbuf, sizeof(char) * (printf_offset + 1), 0);
 
 	if (result < 0) {
 		perror("Can't send file list.\n");
-		exit(EXIT_FAILURE);
+		pthread_exit(NULL);
 	}
 
 	int n_known_nodes = (int) nodepool->size;
@@ -72,16 +90,20 @@ void *sync_handler(void *args) {
 
 	if (result < 0) {
 		perror("Can't send number of known nodes.\n");
-		exit(EXIT_FAILURE);
+		pthread_exit(NULL);
 	}
 
-	char nodeaddr[INET_ADDRSTRLEN + 6];
-	for (int j = 0; j < n_known_nodes; ++j) {
+	NetworkNode known_node;
+	char nodeaddr[NODENAME_LEN + INET_ADDRSTRLEN + 8];
+	for (size_t j = 0; j < n_known_nodes; ++j) {
+		memcpy(&known_node, getVal(nodepool, j), sizeof(NetworkNode));
+		form_node_msg(nodeaddr, known_node);
+
 		result = send(talk_sock, nodeaddr, sizeof(nodeaddr), 0);
 
 		if (result < 0) {
 			perror("Can't send node address.\n");
-			exit(EXIT_FAILURE);
+			pthread_exit(NULL);
 		}
 	}
 }
@@ -125,6 +147,7 @@ void *incoming_handler(void *args) {
 			pthread_create(&thread_id, NULL, sync_handler, handler_sock);
 		} else if (request_buf == NODE_FILE_REQUEST) {
 			printf("Received file request...\n");
+			// TODO Get file name
 			pthread_create(&thread_id, NULL, file_request_handler, handler_sock);
 		} else {
 			printf("Received unknown request.\n");
