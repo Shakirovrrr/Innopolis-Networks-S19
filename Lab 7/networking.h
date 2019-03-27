@@ -23,6 +23,8 @@ int init_tcp_server(in_port_t port);
 
 int setup_communication(int conn_socket);
 
+int init_tcp_client(char ipaddr[INET_ADDRSTRLEN], in_port_t port);
+
 int recvsend(int socket_talk, void *readbuf, size_t readlen, void *sendbuf, size_t sendlen);
 
 int sendrecv(int conn_socket, void *sendbuf, size_t sendlen, void *readbuf, size_t readlen);

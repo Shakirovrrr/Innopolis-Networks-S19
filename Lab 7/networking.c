@@ -96,6 +96,22 @@ int setup_communication(int conn_socket) {
 	return socket_talk;
 }
 
+int init_tcp_client(char *ipaddr, in_port_t port) {
+	long int result = 0;
+	int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(port);
+	result = inet_pton(AF_INET, ipaddr, &addr.sin_addr);
+
+	if (result < 0) {
+		return -1;
+	}
+
+	bind(sockfd, (const struct sockaddr *) &addr, sizeof(addr));
+}
+
 int recvsend(int conn_socket, void *readbuf, size_t readlen, void *sendbuf, size_t sendlen) {
 	if (conn_socket < 0) {
 		perror("Invalid socket value.\n");

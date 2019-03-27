@@ -126,7 +126,7 @@ void *getVal(LinkedList *list, size_t ix) {
 	return current->val;
 }
 
-size_t findVal(LinkedList *list, void *val, size_t valsize) {
+long findVal(LinkedList *list, void *val, size_t valsize) {
 	Node *current = list->head;
 
 	for (size_t i = 0; i < list->size; ++i, current = current->next) {
@@ -134,4 +134,6 @@ size_t findVal(LinkedList *list, void *val, size_t valsize) {
 			return i;
 		}
 	}
+
+	return -1;
 }

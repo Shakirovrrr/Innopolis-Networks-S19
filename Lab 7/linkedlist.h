@@ -28,6 +28,6 @@ char deleteVal(LinkedList *list, size_t ix);
 
 void *getVal(LinkedList *list, size_t ix);
 
-size_t findVal(LinkedList *list, void *val, size_t valsize);
+long findVal(LinkedList *list, void *val, size_t valsize);
 
 #endif //LINKEDLIST_H
