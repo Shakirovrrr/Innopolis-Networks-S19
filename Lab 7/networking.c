@@ -110,6 +110,8 @@ int init_tcp_client(char *ipaddr, in_port_t port) {
 	}
 
 	bind(sockfd, (const struct sockaddr *) &addr, sizeof(addr));
+
+	return sockfd;
 }
 
 int recvsend(int conn_socket, void *readbuf, size_t readlen, void *sendbuf, size_t sendlen) {

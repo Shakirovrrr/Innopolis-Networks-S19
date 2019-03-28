@@ -104,12 +104,12 @@ void *file_request_handler(void *args) {
 
 	unsigned int wordcount = 0;
 	char wordbuf[WORD_LEN];
-	while ((result = fscanf(file, "%s", wordbuf)) != 1) wordcount++;
+	while ((result = fscanf(file, "%s", wordbuf)) > 0) wordcount++;
 	rewind(file);
 	result = send(sock_talk, &wordcount, sizeof(wordcount), 0);
 	for (int i = 0; i < wordcount; ++i) {
 		fscanf(file, "%s", wordbuf);
-		result = send(sock_talk, &wordbuf, sizeof(wordbuf), 0);
+		result = send(sock_talk, wordbuf, sizeof(wordbuf), 0);
 	}
 	// FIXME Errors are not being handled!!!11!!11
 
