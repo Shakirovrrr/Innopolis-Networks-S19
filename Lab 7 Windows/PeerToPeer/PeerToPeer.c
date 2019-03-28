@@ -50,7 +50,7 @@ int FormFileStr(char *str, size_t strCount) {
 }
 
 void DownloadFile(NodeFile nodeFile) {
-	long int result = 0;
+	long result = 0;
 
 	SOCKET sockTalk = InitTCPClient(nodeFile.node.ipAddr, nodeFile.node.port);
 	if (sockTalk == INVALID_SOCKET) {
@@ -94,7 +94,7 @@ void DownloadFile(NodeFile nodeFile) {
 DWORD WINAPI FIleRequestHandler(LPVOID lpParam) {
 	struct FileRequest request = *((struct FileRequest *)lpParam);
 	SOCKET sockTalk = request.sockfd;
-	long int result = 0;
+	long result = 0;
 
 	char filePath[FILENAME_LEN * 2];
 	filePath[0] = '\0';
@@ -121,7 +121,60 @@ DWORD WINAPI FIleRequestHandler(LPVOID lpParam) {
 	closesocket(sockTalk);
 }
 
+DWORD WINAPI SyncHandler(LPVOID lpParam) {
+	SOCKET sockTalk = *((SOCKET *) lpParam);
+	long result = 0;
 
+	int nodeSignal = NODE_SYNC;
+
+	result = send(sockTalk, &nodeSignal, sizeof(nodeSignal), 0);
+
+	if (result < 0) {
+		perror("Can't send signal.\n");
+		ExitThread(-1);
+	}
+
+	char sendBuf[SENDBUF_LEN];
+	char ipStr[INET_ADDRSTRLEN];
+	int portVal;
+	unsigned int offset = 0;
+	GetMyIPAndPort(ipStr, portVal);
+	offset += sprintf_s(sendBuf, sizeof(sendBuf), "%s:%s:%d:", nodeName, ipStr, portVal);
+
+	char fileName[FILENAME_LEN];
+	int fileStrSize = FormFileStr(fileName, sizeof(fileName));
+	strcat_s(sendBuf, sizeof(sendBuf), fileName);
+
+	result = send(sockTalk, &sendBuf, sizeof(char) * (offset + fileStrSize + 1), 0);
+
+	if (result < 0) {
+		perror("Can't send file list.\n");
+		ExitThread(-1);
+	}
+
+	int nKnownNodes = (int) nodePool->size;
+	result = send(sockTalk, &nKnownNodes, sizeof(nKnownNodes), 0);
+	if (result < 0) {
+		perror("Can't send number of known nodes.\n");
+		ExitThread(-1);
+	}
+
+	NetworkNode knownNode;
+	char nodeAddr[PEERSTR_LEN];
+	for (size_t i = 0; i < nKnownNodes; i++) {
+		knownNode = *((NetworkNode *) getVal(nodePool, i));
+		FormNodeMessage(nodeAddr, sizeof(nodeAddr), knownNode);
+
+		result = send(sockTalk, nodeAddr, sizeof(nodeAddr), 0);
+
+		if (result < 0) {
+			perror("Can't send node address.\n");
+			ExitThread(-1);
+		}
+	}
+
+	return 0;
+}
 
 int main() {
 	return 0;
