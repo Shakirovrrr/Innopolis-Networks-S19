@@ -102,6 +102,5 @@ UpgradeLog*.htm
 *.o
 *.out
 
-# CMake files
-*CMakeLists.txt
+# CMake cache
 *cmake-build-debug/
