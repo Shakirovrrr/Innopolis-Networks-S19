@@ -1,4 +1,5 @@
-#include "networking.h"
+#include "pch.h"
+#include "Networking.h"
 
 void GetIPAndPort(SOCKET socket, char *ipAddr, int *port) {
 	SOCKADDR_IN addr;
@@ -20,7 +21,7 @@ void GetMyIPAndPort(char *ipAddr, int *port) {
 	addr.sin_addr.S_un.S_addr = INADDR_ANY;
 	addr.sin_port = htons(0);
 
-	bind(sockfd, &addr, sizeof(addr));
+	bind(sockfd, (SOCKADDR *) &addr, sizeof(addr));
 
 	GetIPAndPort(sockfd, ipAddr, port);
 
@@ -36,7 +37,7 @@ SOCKET InitTCPServer(int port) {
 	addr.sin_addr.S_un.S_addr = INADDR_ANY;
 	addr.sin_port = htons(port);
 
-	bind(sockfd, &addr, sizeof(addr));
+	bind(sockfd, (SOCKADDR *) &addr, sizeof(addr));
 
 	return sockfd;
 }
@@ -55,7 +56,7 @@ SOCKET InitTCPClient(char *ipAddr, int port) {
 		return -1;
 	}
 
-	result = bind(sockfd, &addr, sizeof(addr));
+	result = bind(sockfd, (SOCKADDR *) &addr, sizeof(addr));
 	if (result < 0) {
 		return -1;
 	}

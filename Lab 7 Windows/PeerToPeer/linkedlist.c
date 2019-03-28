@@ -2,7 +2,8 @@
 // Created by Ruslani on 15-Mar-19.
 //
 
-#include "linkedlist.h"
+#include "pch.h"
+#include "LinkedList.h"
 
 Node *__newNode(void *val) {
 	Node *new = (Node *) malloc(sizeof(Node));
@@ -15,8 +16,8 @@ Node *__newNode(void *val) {
 	return new;
 }
 
-LinkedList *newLinkedList() {
-	LinkedList *new = (LinkedList *) malloc(sizeof(LinkedList));
+LinkedList newLinkedList() {
+	LinkedList new = malloc(sizeof(LinkedList));
 	if (!new) return NULL;
 
 	new->size = 0;
@@ -26,7 +27,7 @@ LinkedList *newLinkedList() {
 	return new;
 }
 
-void __initList(LinkedList *list, Node *newNode) {
+void __initList(LinkedList list, Node *newNode) {
 	newNode->prev = NULL;
 	newNode->next = NULL;
 
@@ -35,7 +36,7 @@ void __initList(LinkedList *list, Node *newNode) {
 	list->size++;
 }
 
-Node *__jumpToNode(LinkedList *list, size_t ix) {
+Node *__jumpToNode(LinkedList list, size_t ix) {
 	Node *current = list->head;
 
 	for (int i = 0; i < ix; ++i) {
@@ -45,7 +46,7 @@ Node *__jumpToNode(LinkedList *list, size_t ix) {
 	return current;
 }
 
-void __appendNode(LinkedList *list, Node *val) {
+void __appendNode(LinkedList list, Node *val) {
 	Node *end = list->tail;
 	val->prev = end;
 	end->next = val;
@@ -54,7 +55,7 @@ void __appendNode(LinkedList *list, Node *val) {
 	list->size++;
 }
 
-void __prependNode(LinkedList *list, Node *val) {
+void __prependNode(LinkedList list, Node *val) {
 	Node *begin = list->head;
 	val->next = begin;
 	begin->prev = val;
@@ -63,7 +64,7 @@ void __prependNode(LinkedList *list, Node *val) {
 	list->size++;
 }
 
-char insertVal(LinkedList *list, size_t ix, void *val) {
+char insertVal(LinkedList list, size_t ix, void *val) {
 	if ((ix > list->size && list->size != 0) || ix < 0) return 1;
 
 	Node *new = __newNode(val);
@@ -94,7 +95,7 @@ char insertVal(LinkedList *list, size_t ix, void *val) {
 	return 0;
 }
 
-char deleteVal(LinkedList *list, size_t ix) {
+char deleteVal(LinkedList list, size_t ix) {
 	if ((ix >= list->size && list->size != 0) || ix < 0) return 1;
 
 	Node *current;
@@ -118,7 +119,7 @@ char deleteVal(LinkedList *list, size_t ix) {
 	return 0;
 }
 
-void *getVal(LinkedList *list, size_t ix) {
+void *getVal(LinkedList list, size_t ix) {
 	if ((ix >= list->size && list->size != 0) || ix < 0) return 0;
 
 	Node *current = __jumpToNode(list, ix);
@@ -126,7 +127,7 @@ void *getVal(LinkedList *list, size_t ix) {
 	return current->val;
 }
 
-long findVal(LinkedList *list, void *val, size_t valsize) {
+long long findVal(LinkedList list, void *val, size_t valsize) {
 	Node *current = list->head;
 
 	for (size_t i = 0; i < list->size; ++i, current = current->next) {

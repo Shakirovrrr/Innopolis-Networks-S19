@@ -35,10 +35,10 @@
     <ClCompile Include="pch.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="linkedlist.c">
+    <ClCompile Include="LinkedList.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="networking.c">
+    <ClCompile Include="Networking.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

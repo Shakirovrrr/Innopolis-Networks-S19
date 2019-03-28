@@ -20,14 +20,14 @@ typedef struct LinkedList {
 	size_t size;
 } *LinkedList;
 
-LinkedList *newLinkedList();
+LinkedList newLinkedList();
 
-char insertVal(LinkedList *list, size_t ix, void *val);
+char insertVal(LinkedList list, size_t ix, void *val);
 
-char deleteVal(LinkedList *list, size_t ix);
+char deleteVal(LinkedList list, size_t ix);
 
-void *getVal(LinkedList *list, size_t ix);
+void *getVal(LinkedList list, size_t ix);
 
-long findVal(LinkedList *list, void *val, size_t valsize);
+long long findVal(LinkedList list, void *val, size_t valsize);
 
 #endif //LINKEDLIST_H
