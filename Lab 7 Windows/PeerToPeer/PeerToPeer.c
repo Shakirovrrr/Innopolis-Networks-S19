@@ -82,6 +82,10 @@ void DownloadFile(NodeFile nodeFile) {
 	strcat_s(filePath, sizeof(filePath), nodeFile.name);
 	FILE *file = NULL;
 	fopen_s(&file, filePath, "w");
+	if (!file) {
+		perror("Cannot save file.\n");
+		return;
+	}
 	char wordBuf[WORD_LEN];
 	for (size_t i = 0; i < wordCount; i++) {
 		result = recv(sockTalk, wordBuf, sizeof(wordBuf), 0);
@@ -147,7 +151,7 @@ DWORD WINAPI SyncHandler(LPVOID lpParam) {
 	int fileStrSize = FormFileStr(fileName, sizeof(fileName));
 	strcat_s(sendBuf, sizeof(sendBuf), fileName);
 
-	result = send(sockTalk, sendBuf, sizeof(char) * (offset + fileStrSize + 1), 0);
+	result = send(sockTalk, sendBuf, (int)sizeof(char) * (offset + fileStrSize + 1), 0);
 
 	if (result < 0) {
 		perror("Can't send file list.\n");
@@ -184,6 +188,10 @@ void ParseNode(char nodeData[SENDBUF_LEN]) {
 	char *context = NULL;
 	char *tok = strtok_s(nodeData, delim, &context);
 	NetworkNode *node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
+	if (!node) {
+		perror("Failed to allocate memory for parsing node.\n");
+		return;
+	}
 	sprintf_s(node->name, sizeof(node->name), "%s", tok);
 
 	tok = strtok_s(NULL, delim, &context);
@@ -204,6 +212,10 @@ void ParseNode(char nodeData[SENDBUF_LEN]) {
 		tok = strtok_s(fileList, fileDelim, &context);
 		while (tok) {
 			NodeFile *file = HeapAlloc(GetProcessHeap(), 0, sizeof(NodeFile));
+			if (!file) {
+				perror("Failed to allocate memory for new peer file.\n");
+				return;
+			}
 			strcpy_s(fileList, sizeof(fileList), tok);
 			file->node = *node;
 
@@ -228,6 +240,10 @@ void ParsePeer(char peerData[PEERSTR_LEN]) {
 	char *context = NULL;
 	char *tok = strtok_s(peerData, delim, &context);
 	NetworkNode *node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
+	if (!node) {
+		perror("Failed to allocate memory for new peer node.\n");
+		return;
+	}
 	sprintf_s(node->name, sizeof(node->name), "%s", tok);
 
 	tok = strtok_s(NULL, delim, &context);
@@ -241,7 +257,7 @@ void ParsePeer(char peerData[PEERSTR_LEN]) {
 	}
 }
 
-void SendSync(int sockSync, NetworkNode node) {
+void SendSync(SOCKET sockSync, NetworkNode node) {
 	long int result = 0;
 	int message = NODE_SYNC;
 	result = send(sockSync, &message, sizeof(message), 0);
@@ -282,10 +298,10 @@ void SendSync(int sockSync, NetworkNode node) {
 	}
 }
 
-DWORD WINAPI Syncer() {
+DWORD WINAPI Syncer(LPVOID lpParam) {
 	SetConsoleCtrlHandler(CtrlHandler, TRUE);
 
-	int sockSync = 0;
+	SOCKET sockSync = 0;
 	NetworkNode node;
 	while (running) {
 		for (size_t i = 0; i < nodePool->size; i++) {
@@ -296,15 +312,17 @@ DWORD WINAPI Syncer() {
 			Sleep(750);
 		}
 	}
+
+	return 0;
 }
 
-DWORD WINAPI IncomingHandler() {
+DWORD WINAPI IncomingHandler(LPVOID lpParam) {
 	SetConsoleCtrlHandler(CtrlHandler, TRUE);
 	running = 1;
 
 	CreateThread(NULL, 0, &Syncer, NULL, 0, NULL);
 
-	int inSock = InitTCPServer(mainPort);
+	SOCKET inSock = InitTCPServer(mainPort);
 
 	char addrStr[INET_ADDRSTRLEN];
 	int portVal;
@@ -312,15 +330,22 @@ DWORD WINAPI IncomingHandler() {
 	printf_s("Running on %s:%d\n", addrStr, portVal);
 
 	SOCKADDR_STORAGE theirAddr;
-	socklen_t addrLen;
+	socklen_t addrLen = 0;
 	SOCKET sockTalk = 0;
 	int requestBuf = -1;
 	long result = 0;
-	int *handlerSock = HeapAlloc(GetProcessHeap(), 0, sizeof(int));
+	SOCKET *handlerSock = HeapAlloc(GetProcessHeap(), 0, sizeof(SOCKET));
+	if (!handlerSock) {
+		perror("Failed to allocate memory for handler socket.\n");
+		return -1;
+	}
 
 	while (running) {
 		sockTalk = accept(inSock, (SOCKADDR *) &theirAddr, &addrLen);
-		if (sockTalk < 0) {
+		if (sockTalk == INVALID_SOCKET) {
+			printf_s("Error %d\n", WSAGetLastError());
+			perror("Cannot create talk socket.\n");
+			Sleep(1000);
 			continue;
 		}
 
@@ -366,6 +391,128 @@ DWORD WINAPI IncomingHandler() {
 	return 0;
 }
 
+void PrintFile(FILE *file) {
+	char printBuf[WORD_LEN];
+	printf_s("\n<<<<< FILE BEGIN >>>>>\n");
+	while (fscanf_s(file, "%s", printBuf, WORD_LEN) == 1) {
+		printf_s("%s ", printBuf);
+	}
+	printf_s("\n<<<<<< FILE END >>>>>>\n");
+}
+
+void RetrieveFile(char fileName[FILENAME_LEN]) {
+	char filePath[FILENAME_LEN * 2];
+	filePath[0] = '\0';
+	strcat_s(filePath, sizeof(filePath), sharedDir);
+	strcat_s(filePath, sizeof(filePath), fileName);
+	printf_s("Retrieving %s...\n", filePath);
+
+	FILE *file = NULL;
+	fopen_s(&file, filePath, "r");
+	if (file) {
+		PrintFile(file);
+		return;
+	}
+
+	NodeFile nodeFile;
+	for (size_t i = 0; i < filePool->size; i++) {
+		nodeFile = *((NodeFile *) getVal(filePool, i));
+		if (strcmp(nodeFile.name, fileName) == 0) {
+			DownloadFile(nodeFile);
+
+			file = NULL;
+			fopen_s(&file, filePath, "r");
+			if (!file) {
+				printf_s("Cannot retrieve %s.\n", filePath);
+			}
+
+			PrintFile(file);
+
+			return;
+		}
+	}
+
+	printf_s("Cannot retrieve %s.\n", filePath);
+}
+
+DWORD WINAPI UserRepl(LPVOID lpParam) {
+	while (running) {
+		printf_s("Command/file: ? ");
+		char command[FILENAME_LEN];
+		ZeroMemory(command, sizeof(command));
+		command[0] = '\0';
+		scanf_s("%s", command, FILENAME_LEN);
+
+		if (strcmp(command, "exit") == 0) {
+			CtrlHandler(CTRL_C_EVENT);
+			return 0;
+		}
+
+		printf_s("Trying to retrieve the file...\n");
+		RetrieveFile(command);
+	}
+
+	return 0;
+}
+
 int main() {
+	printf_s("Files directory to share: ? ");
+	scanf_s("%s", sharedDir, MAX_DIRLEN);
+	printf_s("\n");
+
+	strcat_s(sharedDir, sizeof(sharedDir), "\\");
+
+	char decided = 0;
+	while (!decided) {
+		printf_s("Connect to another node: (y/n)? ");
+		char ans[4];
+		scanf_s("%s", ans, 4);
+		if (ans[0] == 'y' || ans[0] == 'Y') {
+			char addr[INET_ADDRSTRLEN];
+			printf_s("IPv4 address: ? ");
+			scanf_s("%s", addr, INET_ADDRSTRLEN);
+			printf_s("\n");
+
+			int port = 0;
+			while (port == 0) {
+				printf_s("Port: ? ");
+				char portBuf[6];
+				portBuf[0] = '\0';
+				scanf_s("%s", portBuf, 6);
+				port = (int) strtoul(portBuf, NULL, 0);
+				printf_s("\n");
+			}
+			decided = 1;
+		} else if (ans[0] == 'n' || ans[0] == 'N') {
+			decided = 1;
+		} else {
+			printf_s("Yes/No: ? ");
+		}
+	}
+
+	nodePool = newLinkedList();
+	filePool = newLinkedList();
+
+	mainPort = 5002;
+
+	WSADATA wsaData;
+	int iResult;
+	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (iResult != 0) {
+		perror("WSAStartup failed.\n");
+		WSACleanup();
+		return -1;
+	}
+
+	hListenerThread = CreateThread(NULL, 0, &IncomingHandler, NULL, 0, NULL);
+	if (hListenerThread == INVALID_HANDLE_VALUE || hListenerThread == 0) {
+		perror("Failed to start listener thread.\n");
+		return -1;
+	}
+	CreateThread(NULL, 0, &UserRepl, NULL, 0, NULL);
+	WaitForSingleObject(hListenerThread, INFINITE);
+
+	WSACleanup();
+
 	return 0;
 }

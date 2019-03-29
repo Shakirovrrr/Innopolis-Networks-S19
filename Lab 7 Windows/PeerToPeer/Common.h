@@ -27,7 +27,7 @@ typedef struct NodeFile {
 } NodeFile;
 
 struct FileRequest {
-	int sockfd;
+	SOCKET sockfd;
 	char fileName[FILENAME_LEN];
 };
 

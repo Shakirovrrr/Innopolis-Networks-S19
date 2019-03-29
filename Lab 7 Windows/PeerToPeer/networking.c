@@ -3,7 +3,7 @@
 
 void GetIPAndPort(SOCKET socket, char *ipAddr, int *port) {
 	SOCKADDR_IN addr;
-	int len;
+	int len = 0;
 
 	ZeroMemory(&addr, sizeof(addr));
 	getpeername(socket, (SOCKADDR *) &addr, &len);
@@ -39,11 +39,17 @@ SOCKET InitTCPServer(int port) {
 
 	bind(sockfd, (SOCKADDR *) &addr, sizeof(addr));
 
+	listen(sockfd, 8);
+
 	return sockfd;
 }
 
 SOCKET InitTCPClient(char *ipAddr, int port) {
 	SOCKET sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (sockfd == INVALID_SOCKET) {
+		return INVALID_SOCKET;
+	}
 
 	SOCKADDR_IN addr;
 	ZeroMemory(&addr, sizeof(addr));
