@@ -58,7 +58,7 @@ void DownloadFile(NodeFile nodeFile) {
 		return;
 	}
 
-	int request = NODE_FILE_REQUEST;
+	int request = htonlO(NODE_FILE_REQUEST);
 	result = send(sockTalk, &request, sizeof(request), 0);
 	if (result < 0) {
 		perror("Cannot download file (unable to send request).\n");
@@ -67,6 +67,7 @@ void DownloadFile(NodeFile nodeFile) {
 
 	int wordCount = 0;
 	result = recv(sockTalk, &wordCount, sizeof(wordCount), 0);
+	wordCount = ntohlO(wordCount);
 	if (result < 0) {
 		perror("Cannot download file (unable receive word count).\n");
 		return;
@@ -99,7 +100,7 @@ DWORD WINAPI FIleRequestHandler(LPVOID lpParam) {
 	FILE* file = NULL;
 	fopen_s(&file, request.fileName, "r");
 	if (!file) {
-		int errMsg = -1;
+		int errMsg = htonlO(~0);
 		result = send(sockTalk, &errMsg, sizeof(errMsg), 0);
 		closesocket(sockTalk);
 		ExitThread(-1);
@@ -109,6 +110,7 @@ DWORD WINAPI FIleRequestHandler(LPVOID lpParam) {
 	char wordBuf[WORD_LEN];
 	while ((result = fscanf_s(file, "%s", wordBuf, WORD_LEN)) > 0) wordCount++;
 	rewind(file);
+	wordCount = htonlO(wordCount);
 	result = send(sockTalk, &wordCount, sizeof(wordCount), 0);
 	for (size_t i = 0; i < wordCount; i++) {
 		fscanf_s(file, "%s", wordBuf, WORD_LEN);
@@ -123,7 +125,7 @@ DWORD WINAPI SyncHandler(LPVOID lpParam) {
 	SOCKET sockTalk = *((SOCKET*) lpParam);
 	long result = 0;
 
-	int nodeSignal = NODE_SYNC;
+	int nodeSignal = htonlO(NODE_SYNC);
 
 	result = send(sockTalk, &nodeSignal, sizeof(nodeSignal), 0);
 
@@ -150,7 +152,8 @@ DWORD WINAPI SyncHandler(LPVOID lpParam) {
 		ExitThread(-1);
 	}
 
-	int nKnownNodes = (int) nodePool->size;
+	unsigned int nKnownNodes = (unsigned int) nodePool->size;
+	nKnownNodes = htonlO(nKnownNodes);
 	result = send(sockTalk, &nKnownNodes, sizeof(nKnownNodes), 0);
 	if (result < 0) {
 		perror("Can't send number of known nodes.\n");
@@ -251,20 +254,25 @@ void ParsePeer(char peerData[PEERSTR_LEN]) {
 
 void SendSync(SOCKET sockSync, NetworkNode node) {
 	long int result = 0;
-	int message = NODE_SYNC;
+	unsigned int message = htonlO(NODE_SYNC);
 	result = send(sockSync, &message, sizeof(message), 0);
 	if (result < 0) {
-		perror("Cannot send message.\n");
+		perror("Cannot send message. ");
+		printf_s("Error code %d.\n", WSAGetLastError());
 		RemoveInactiveNode(node);
 		return;
 	}
 
-	message = -1;
+	message = 0;
 	result = recv(sockSync, &message, sizeof(message), 0);
-	if (result < 0 || message < 0) {
+	message = ntohlO(message);
+	if (result < 0) {
 		perror("Cannot get sync message.\n");
 		RemoveInactiveNode(node);
 		return;
+	}
+	if (message != NODE_SYNC) {
+		perror("Warning: wrong sync reply.\n");
 	}
 
 	char buffer[SENDBUF_LEN];
@@ -282,6 +290,7 @@ void SendSync(SOCKET sockSync, NetworkNode node) {
 		perror("Cannot receive number of known nodes.\n");
 		return;
 	}
+	message = ntohlO(message);
 
 	char peerBuf[PEERSTR_LEN];
 	for (int i = 0; i < message; ++i) {
@@ -315,6 +324,7 @@ DWORD WINAPI IncomingHandler(LPVOID lpParam) {
 	CreateThread(NULL, 0, &Syncer, NULL, 0, NULL);
 
 	SOCKET inSock = InitTCPServer(mainPort);
+	listen(inSock, 8);
 
 	char addrStr[INET_ADDRSTRLEN];
 	int portVal = 0;
@@ -324,7 +334,7 @@ DWORD WINAPI IncomingHandler(LPVOID lpParam) {
 	SOCKADDR_IN theirAddr;
 	socklen_t addrLen = sizeof(SOCKADDR_IN);
 	SOCKET sockTalk = 0;
-	int requestBuf = -1;
+	unsigned int requestBuf = -1;
 	long result = 0;
 
 	SOCKET* handlerSock = HeapAlloc(GetProcessHeap(), 0, sizeof(SOCKET));
@@ -342,11 +352,15 @@ DWORD WINAPI IncomingHandler(LPVOID lpParam) {
 			continue;
 		}
 
+		char theirIP[INET_ADDRSTRLEN];
+		InetNtopA(AF_INET, &theirAddr.sin_addr, theirIP, sizeof(theirIP));
+		printf_s("Got new connection from %s:%hu...\n", theirIP, ntohs(theirAddr.sin_port));
 		result = recv(sockTalk, &requestBuf, sizeof(requestBuf), 0);
 		if (result < 0) {
 			perror("Did not receive the request.\n");
 			continue;
 		}
+		requestBuf = ntohlO(requestBuf);
 
 		*handlerSock = sockTalk;
 		switch (requestBuf) {
@@ -508,7 +522,7 @@ int main() {
 		}
 	}
 
-	mainPort = 5002;
+	mainPort = 5003;
 
 	WSADATA wsaData;
 	int iResult;

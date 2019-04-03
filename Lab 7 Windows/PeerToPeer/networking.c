@@ -22,7 +22,7 @@ unsigned long ntohlO(unsigned long val) {
 	}
 }
 
-void GetIPAndPort(SOCKET socket, char* ipAddr, int* port) {
+void GetIPAndPort(SOCKET socket, char ipAddr[INET_ADDRSTRLEN], int* port) {
 	SOCKADDR_IN addr;
 	int len = sizeof(addr);
 
@@ -31,7 +31,7 @@ void GetIPAndPort(SOCKET socket, char* ipAddr, int* port) {
 	getsockname(socket, (SOCKADDR*) & addr, &len);
 
 	*port = ntohs(addr.sin_port);
-	InetNtopA(AF_INET, &addr.sin_addr, ipAddr, sizeof(char) * INET_ADDRSTRLEN);
+	InetNtopA(AF_INET, &addr.sin_addr, ipAddr, sizeof(ipAddr));
 }
 
 void GetMyIPAndPort(char* ipAddr, int* port) {
@@ -61,8 +61,6 @@ SOCKET InitTCPServer(int port) {
 
 	bind(sockfd, (SOCKADDR*) & addr, sizeof(addr));
 
-	listen(sockfd, 8);
-
 	return sockfd;
 }
 
@@ -76,7 +74,7 @@ SOCKET InitTCPClient(char* ipAddr, int port) {
 	SOCKADDR_IN addr;
 	ZeroMemory(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_port = port;
+	addr.sin_port = htons(port);
 
 	int result = 0;
 	result = InetPtonA(AF_INET, ipAddr, &addr.sin_addr);
@@ -84,7 +82,7 @@ SOCKET InitTCPClient(char* ipAddr, int port) {
 		return -1;
 	}
 
-	result = bind(sockfd, (SOCKADDR*) & addr, sizeof(addr));
+	result = connect(sockfd, (SOCKADDR*) & addr, sizeof(addr));
 	if (result < 0) {
 		return -1;
 	}
