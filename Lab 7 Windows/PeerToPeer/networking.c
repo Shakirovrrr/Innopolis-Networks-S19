@@ -22,7 +22,7 @@ unsigned long ntohlO(unsigned long val) {
 	}
 }
 
-void GetIPAndPort(SOCKET socket, char ipAddr[INET_ADDRSTRLEN], int* port) {
+void GetIPAndPort(SOCKET socket, char* ipAddr, int* port) {
 	SOCKADDR_IN addr;
 	int len = sizeof(addr);
 
@@ -31,7 +31,7 @@ void GetIPAndPort(SOCKET socket, char ipAddr[INET_ADDRSTRLEN], int* port) {
 	getsockname(socket, (SOCKADDR*) & addr, &len);
 
 	*port = ntohs(addr.sin_port);
-	InetNtopA(AF_INET, &addr.sin_addr, ipAddr, sizeof(ipAddr));
+	InetNtopA(AF_INET, &addr.sin_addr, ipAddr, sizeof(char) * INET_ADDRSTRLEN);
 }
 
 void GetMyIPAndPort(char* ipAddr, int* port) {

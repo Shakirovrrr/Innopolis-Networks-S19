@@ -4,7 +4,7 @@
 #include "pch.h"
 #include "Common.h"
 
-char nodeName[NODENAME_LEN];
+char nodeName[] = "TestNode";
 int mainPort;
 HANDLE hListenerThread, hSyncerThread, hReplThread;
 char sharedDir[MAX_DIRLEN];
@@ -16,7 +16,7 @@ LinkedList filePool;
 BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) {
 	switch (fdwCtrlType) {
 	case CTRL_C_EVENT:
-		running = 0;
+		running = FALSE;
 		ExitThread(0);
 		return TRUE;
 
@@ -31,7 +31,7 @@ void FormNodeMessage(char* message, size_t msgCount, NetworkNode node) {
 
 int FormFileStr(char* str, size_t strCount) {
 	WIN32_FIND_DATAA data;
-	HANDLE hFind = FindFirstFileA(sharedDir, &data);
+	HANDLE hFind = FindFirstFileA("*", &data);
 
 	if (hFind == INVALID_HANDLE_VALUE) {
 		return -1;
@@ -41,6 +41,7 @@ int FormFileStr(char* str, size_t strCount) {
 	offset--;
 
 	do {
+		if (data.cFileName[0] == '.') continue;
 		offset += sprintf_s(str + offset, strCount, "%s,", data.cFileName);
 	} while (FindNextFileA(hFind, &data));
 
@@ -136,16 +137,17 @@ DWORD WINAPI SyncHandler(LPVOID lpParam) {
 
 	char sendBuf[SENDBUF_LEN];
 	char ipStr[INET_ADDRSTRLEN];
+	ZeroMemory(ipStr, sizeof(ipStr));
 	int portVal = 0;
 	unsigned int offset = 0;
-	GetMyIPAndPort(ipStr, &portVal);
+	GetIPAndPort(sockTalk, ipStr, &portVal);
 	offset += sprintf_s(sendBuf, sizeof(sendBuf), "%s:%s:%d:", nodeName, ipStr, portVal);
 
-	char fileName[FILENAME_LEN];
+	char fileName[FILENAME_LEN * 10];
 	int fileStrSize = FormFileStr(fileName, sizeof(fileName));
 	strcat_s(sendBuf, sizeof(sendBuf), fileName);
 
-	result = send(sockTalk, sendBuf, (int)sizeof(char) * (offset + fileStrSize + 1), 0);
+	result = send(sockTalk, sendBuf, ((unsigned int)sizeof(char)) * (offset + fileStrSize + 1), 0);
 
 	if (result < 0) {
 		perror("Can't send file list.\n");
@@ -174,7 +176,6 @@ DWORD WINAPI SyncHandler(LPVOID lpParam) {
 		}
 	}
 
-
 	return 0;
 }
 
@@ -191,7 +192,7 @@ void ParseNode(char nodeData[SENDBUF_LEN]) {
 
 	tok = strtok_s(NULL, delim, &context);
 	char portVal[6];
-	sprintf_s(portVal, sizeof(portVal), "%s", tok);
+	sprintf_s(portVal, sizeof(portVal), "%s", tok); // Exception somewhere here. Poertval is empty!
 	node->port = (int) strtoul(portVal, NULL, 0);
 	tok = strtok_s(NULL, delim, &context);
 
@@ -254,7 +255,7 @@ void ParsePeer(char peerData[PEERSTR_LEN]) {
 
 void SendSync(SOCKET sockSync, NetworkNode node) {
 	long int result = 0;
-	unsigned int message = htonlO(NODE_SYNC);
+	unsigned long message = htonlO(NODE_SYNC);
 	result = send(sockSync, &message, sizeof(message), 0);
 	if (result < 0) {
 		perror("Cannot send message. ");
@@ -293,7 +294,7 @@ void SendSync(SOCKET sockSync, NetworkNode node) {
 	message = ntohlO(message);
 
 	char peerBuf[PEERSTR_LEN];
-	for (int i = 0; i < message; ++i) {
+	for (unsigned int i = 0; i < message; ++i) {
 		result = recv(sockSync, peerBuf, sizeof(peerBuf), 0);
 		ParsePeer(peerBuf);
 	}
@@ -310,7 +311,7 @@ DWORD WINAPI Syncer(LPVOID lpParam) {
 			sockSync = InitTCPClient(node.ipAddr, node.port);
 			SendSync(sockSync, node);
 			closesocket(sockSync);
-			Sleep(750);
+			Sleep(500);
 		}
 	}
 
@@ -319,7 +320,7 @@ DWORD WINAPI Syncer(LPVOID lpParam) {
 
 DWORD WINAPI IncomingHandler(LPVOID lpParam) {
 	SetConsoleCtrlHandler(CtrlHandler, TRUE);
-	running = 1;
+	running = TRUE;
 
 	CreateThread(NULL, 0, &Syncer, NULL, 0, NULL);
 
@@ -470,6 +471,8 @@ DWORD WINAPI UserRepl(LPVOID lpParam) {
 }
 
 int main() {
+	mainPort = 5002;
+
 	nodePool = newLinkedList();
 	filePool = newLinkedList();
 
@@ -503,8 +506,9 @@ int main() {
 				port = (int) strtoul(portBuf, NULL, 0);
 				printf_s("\n");
 			}
+			if (port == mainPort) mainPort++;
 
-			NetworkNode* node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
+			NetworkNode * node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
 			if (!node) {
 				perror("Cannot add node (first connect).\n");
 				return -1;
@@ -522,8 +526,6 @@ int main() {
 		}
 	}
 
-	mainPort = 5003;
-
 	WSADATA wsaData;
 	int iResult;
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -534,18 +536,22 @@ int main() {
 	}
 
 	hListenerThread = CreateThread(NULL, 0, &IncomingHandler, NULL, 0, NULL);
-	hReplThread = CreateThread(NULL, 0, &UserRepl, NULL, 0, NULL);
+	//hReplThread = CreateThread(NULL, 0, &UserRepl, NULL, 0, NULL);
 	if (hListenerThread == INVALID_HANDLE_VALUE || hListenerThread == 0) {
 		perror("Failed to start listener thread.\n");
 		return -1;
 	}
 	if (hReplThread == INVALID_HANDLE_VALUE || hReplThread == 0) {
 		perror("Failed to start repl thread.\n");
-		return -1;
+		//return -1;
 	}
 
-	HANDLE handles[] = { hListenerThread, hReplThread };
-	WaitForMultipleObjects(2, handles, TRUE, INFINITE);
+	//HANDLE handles[] = { hListenerThread, hReplThread };
+	//WaitForMultipleObjects(2, handles, TRUE, INFINITE);
+
+	running = TRUE;
+	UserRepl(NULL);
+	WaitForSingleObject(hListenerThread, INFINITE);
 
 	WSACleanup();
 
