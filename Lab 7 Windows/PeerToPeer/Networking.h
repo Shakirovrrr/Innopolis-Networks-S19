@@ -5,6 +5,10 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 
+unsigned long htonlO(unsigned long val);
+
+unsigned long ntohlO(unsigned long val);
+
 void GetIPAndPort(SOCKET socket, char * ipAddr, int * port);
 
 void GetMyIPAndPort(char * ipAddr, int * port);

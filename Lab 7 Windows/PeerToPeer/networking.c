@@ -1,18 +1,40 @@
 #include "pch.h"
 #include "Networking.h"
 
-void GetIPAndPort(SOCKET socket, char *ipAddr, int *port) {
+const BOOL USE_HTONS = TRUE;
+#ifdef KEEP_BYTE_ORDER
+USE_HTONS = FALSE;
+#endif // KEEP_BYTE_ORDER
+
+unsigned long htonlO(unsigned long val) {
+	if (USE_HTONS) {
+		return htonl(val);
+	} else {
+		return val;
+	}
+}
+
+unsigned long ntohlO(unsigned long val) {
+	if (USE_HTONS) {
+		return ntohl(val);
+	} else {
+		return val;
+	}
+}
+
+void GetIPAndPort(SOCKET socket, char* ipAddr, int* port) {
 	SOCKADDR_IN addr;
-	int len = 0;
+	int len = sizeof(addr);
 
 	ZeroMemory(&addr, sizeof(addr));
-	getpeername(socket, (SOCKADDR *) &addr, &len);
+	//getpeername(socket, (SOCKADDR*) & addr, &len);
+	getsockname(socket, (SOCKADDR*) & addr, &len);
 
 	*port = ntohs(addr.sin_port);
 	InetNtopA(AF_INET, &addr.sin_addr, ipAddr, sizeof(char) * INET_ADDRSTRLEN);
 }
 
-void GetMyIPAndPort(char *ipAddr, int *port) {
+void GetMyIPAndPort(char* ipAddr, int* port) {
 	SOCKET sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	SOCKADDR_IN addr;
@@ -21,7 +43,7 @@ void GetMyIPAndPort(char *ipAddr, int *port) {
 	addr.sin_addr.S_un.S_addr = INADDR_ANY;
 	addr.sin_port = htons(0);
 
-	bind(sockfd, (SOCKADDR *) &addr, sizeof(addr));
+	bind(sockfd, (SOCKADDR*) & addr, sizeof(addr));
 
 	GetIPAndPort(sockfd, ipAddr, port);
 
@@ -37,14 +59,14 @@ SOCKET InitTCPServer(int port) {
 	addr.sin_addr.S_un.S_addr = INADDR_ANY;
 	addr.sin_port = htons(port);
 
-	bind(sockfd, (SOCKADDR *) &addr, sizeof(addr));
+	bind(sockfd, (SOCKADDR*) & addr, sizeof(addr));
 
 	listen(sockfd, 8);
 
 	return sockfd;
 }
 
-SOCKET InitTCPClient(char *ipAddr, int port) {
+SOCKET InitTCPClient(char* ipAddr, int port) {
 	SOCKET sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (sockfd == INVALID_SOCKET) {
@@ -62,7 +84,7 @@ SOCKET InitTCPClient(char *ipAddr, int port) {
 		return -1;
 	}
 
-	result = bind(sockfd, (SOCKADDR *) &addr, sizeof(addr));
+	result = bind(sockfd, (SOCKADDR*) & addr, sizeof(addr));
 	if (result < 0) {
 		return -1;
 	}

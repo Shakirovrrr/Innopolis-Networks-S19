@@ -1,0 +1,6 @@
+# Rules in this file were initially inferred by Visual Studio IntelliCode from the C:\Users\Ruslani\source\repos\NetworksHomework\Lab 7 Windows\PeerToPeer\ codebase based on best match to current usage at 03-Apr-19
+# You can modify the rules from these initially generated values to suit your own policies
+# You can learn more about editorconfig here: https://docs.microsoft.com/en-us/visualstudio/ide/editorconfig-code-style-settings-reference
+[*.c]
+indent_style = tab
+indent_size = 4

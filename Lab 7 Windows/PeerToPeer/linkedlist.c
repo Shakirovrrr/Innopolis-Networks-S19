@@ -6,7 +6,7 @@
 #include "LinkedList.h"
 
 Node *__newNode(void *val) {
-	Node *new = (Node *) malloc(sizeof(Node));
+	Node *new = (Node *) malloc(sizeof(struct Node));
 	if (!new) return NULL;
 
 	new->val = val;
@@ -17,14 +17,14 @@ Node *__newNode(void *val) {
 }
 
 LinkedList newLinkedList() {
-	LinkedList new = malloc(sizeof(LinkedList));
-	if (!new) return NULL;
+	LinkedList newList = malloc(sizeof(struct LinkedList));
+	if (!newList) return NULL;
 
-	new->size = 0;
-	new->head = NULL;
-	new->tail = NULL;
+	newList->size = 0;
+	newList->head = NULL;
+	newList->tail = NULL;
 
-	return new;
+	return newList;
 }
 
 void __initList(LinkedList list, Node *newNode) {
@@ -120,7 +120,7 @@ char deleteVal(LinkedList list, size_t ix) {
 }
 
 void *getVal(LinkedList list, size_t ix) {
-	if ((ix >= list->size && list->size != 0) || ix < 0) return 0;
+	if ((ix >= list->size && list->size != 0) || ix < 0) return NULL;
 
 	Node *current = __jumpToNode(list, ix);
 

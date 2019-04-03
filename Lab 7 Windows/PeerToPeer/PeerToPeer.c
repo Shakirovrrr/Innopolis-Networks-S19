@@ -6,7 +6,7 @@
 
 char nodeName[NODENAME_LEN];
 int mainPort;
-HANDLE hListenerThread, hSyncerThread;
+HANDLE hListenerThread, hSyncerThread, hReplThread;
 char sharedDir[MAX_DIRLEN];
 char running;
 
@@ -25,11 +25,11 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) {
 	}
 }
 
-void FormNodeMessage(char *message, size_t msgCount, NetworkNode node) {
+void FormNodeMessage(char* message, size_t msgCount, NetworkNode node) {
 	sprintf_s(message, msgCount, "%s:%s:%d", node.name, node.ipAddr, node.port);
 }
 
-int FormFileStr(char *str, size_t strCount) {
+int FormFileStr(char* str, size_t strCount) {
 	WIN32_FIND_DATAA data;
 	HANDLE hFind = FindFirstFileA(sharedDir, &data);
 
@@ -76,12 +76,8 @@ void DownloadFile(NodeFile nodeFile) {
 		return;
 	}
 
-	char filePath[FILENAME_LEN * 2];
-	filePath[0] = '\0';
-	strcat_s(filePath, sizeof(filePath), sharedDir);
-	strcat_s(filePath, sizeof(filePath), nodeFile.name);
-	FILE *file = NULL;
-	fopen_s(&file, filePath, "w");
+	FILE* file = NULL;
+	fopen_s(&file, nodeFile.name, "w");
 	if (!file) {
 		perror("Cannot save file.\n");
 		return;
@@ -96,16 +92,12 @@ void DownloadFile(NodeFile nodeFile) {
 }
 
 DWORD WINAPI FIleRequestHandler(LPVOID lpParam) {
-	struct FileRequest request = *((struct FileRequest *)lpParam);
+	struct FileRequest request = *((struct FileRequest*)lpParam);
 	SOCKET sockTalk = request.sockfd;
 	long result = 0;
 
-	char filePath[FILENAME_LEN * 2];
-	filePath[0] = '\0';
-	strcat_s(filePath, sizeof(filePath), sharedDir);
-	strcat_s(filePath, sizeof(filePath), request.fileName);
-	FILE *file = NULL;
-	fopen_s(&file, filePath, "r");
+	FILE* file = NULL;
+	fopen_s(&file, request.fileName, "r");
 	if (!file) {
 		int errMsg = -1;
 		result = send(sockTalk, &errMsg, sizeof(errMsg), 0);
@@ -128,7 +120,7 @@ DWORD WINAPI FIleRequestHandler(LPVOID lpParam) {
 }
 
 DWORD WINAPI SyncHandler(LPVOID lpParam) {
-	SOCKET sockTalk = *((SOCKET *) lpParam);
+	SOCKET sockTalk = *((SOCKET*) lpParam);
 	long result = 0;
 
 	int nodeSignal = NODE_SYNC;
@@ -165,11 +157,11 @@ DWORD WINAPI SyncHandler(LPVOID lpParam) {
 		ExitThread(-1);
 	}
 
-	NetworkNode knownNode;
+	NetworkNode* knownNode;
 	char nodeAddr[PEERSTR_LEN];
 	for (size_t i = 0; i < nKnownNodes; i++) {
-		knownNode = *((NetworkNode *) getVal(nodePool, i));
-		FormNodeMessage(nodeAddr, sizeof(nodeAddr), knownNode);
+		knownNode = ((NetworkNode*) getVal(nodePool, i));
+		FormNodeMessage(nodeAddr, sizeof(nodeAddr), *knownNode);
 
 		result = send(sockTalk, nodeAddr, sizeof(nodeAddr), 0);
 
@@ -185,9 +177,9 @@ DWORD WINAPI SyncHandler(LPVOID lpParam) {
 
 void ParseNode(char nodeData[SENDBUF_LEN]) {
 	char delim[] = ":";
-	char *context = NULL;
-	char *tok = strtok_s(nodeData, delim, &context);
-	NetworkNode *node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
+	char* context = NULL;
+	char* tok = strtok_s(nodeData, delim, &context);
+	NetworkNode* node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
 	if (!node) {
 		perror("Failed to allocate memory for parsing node.\n");
 		return;
@@ -211,7 +203,7 @@ void ParseNode(char nodeData[SENDBUF_LEN]) {
 		char fileDelim[] = ",";
 		tok = strtok_s(fileList, fileDelim, &context);
 		while (tok) {
-			NodeFile *file = HeapAlloc(GetProcessHeap(), 0, sizeof(NodeFile));
+			NodeFile* file = HeapAlloc(GetProcessHeap(), 0, sizeof(NodeFile));
 			if (!file) {
 				perror("Failed to allocate memory for new peer file.\n");
 				return;
@@ -237,9 +229,9 @@ void RemoveInactiveNode(NetworkNode node) {
 
 void ParsePeer(char peerData[PEERSTR_LEN]) {
 	char delim[] = ":";
-	char *context = NULL;
-	char *tok = strtok_s(peerData, delim, &context);
-	NetworkNode *node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
+	char* context = NULL;
+	char* tok = strtok_s(peerData, delim, &context);
+	NetworkNode* node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
 	if (!node) {
 		perror("Failed to allocate memory for new peer node.\n");
 		return;
@@ -305,7 +297,7 @@ DWORD WINAPI Syncer(LPVOID lpParam) {
 	NetworkNode node;
 	while (running) {
 		for (size_t i = 0; i < nodePool->size; i++) {
-			node = *((NetworkNode *) getVal(nodePool, i));
+			node = *((NetworkNode*) getVal(nodePool, i));
 			sockSync = InitTCPClient(node.ipAddr, node.port);
 			SendSync(sockSync, node);
 			closesocket(sockSync);
@@ -325,23 +317,24 @@ DWORD WINAPI IncomingHandler(LPVOID lpParam) {
 	SOCKET inSock = InitTCPServer(mainPort);
 
 	char addrStr[INET_ADDRSTRLEN];
-	int portVal;
+	int portVal = 0;
 	GetIPAndPort(inSock, addrStr, &portVal);
 	printf_s("Running on %s:%d\n", addrStr, portVal);
 
-	SOCKADDR_STORAGE theirAddr;
-	socklen_t addrLen = 0;
+	SOCKADDR_IN theirAddr;
+	socklen_t addrLen = sizeof(SOCKADDR_IN);
 	SOCKET sockTalk = 0;
 	int requestBuf = -1;
 	long result = 0;
-	SOCKET *handlerSock = HeapAlloc(GetProcessHeap(), 0, sizeof(SOCKET));
+
+	SOCKET* handlerSock = HeapAlloc(GetProcessHeap(), 0, sizeof(SOCKET));
 	if (!handlerSock) {
 		perror("Failed to allocate memory for handler socket.\n");
 		return -1;
 	}
 
 	while (running) {
-		sockTalk = accept(inSock, (SOCKADDR *) &theirAddr, &addrLen);
+		sockTalk = accept(inSock, (SOCKADDR*) & theirAddr, &addrLen);
 		if (sockTalk == INVALID_SOCKET) {
 			printf_s("Error %d\n", WSAGetLastError());
 			perror("Cannot create talk socket.\n");
@@ -391,7 +384,7 @@ DWORD WINAPI IncomingHandler(LPVOID lpParam) {
 	return 0;
 }
 
-void PrintFile(FILE *file) {
+void PrintFile(FILE * file) {
 	char printBuf[WORD_LEN];
 	printf_s("\n<<<<< FILE BEGIN >>>>>\n");
 	while (fscanf_s(file, "%s", printBuf, WORD_LEN) == 1) {
@@ -401,29 +394,36 @@ void PrintFile(FILE *file) {
 }
 
 void RetrieveFile(char fileName[FILENAME_LEN]) {
-	char filePath[FILENAME_LEN * 2];
+	/*char filePath[FILENAME_LEN * 2];
 	filePath[0] = '\0';
 	strcat_s(filePath, sizeof(filePath), sharedDir);
 	strcat_s(filePath, sizeof(filePath), fileName);
-	printf_s("Retrieving %s...\n", filePath);
+	printf_s("Retrieving %s...\n", filePath);*/
 
-	FILE *file = NULL;
-	fopen_s(&file, filePath, "r");
+#ifdef _DEBUG
+	char buf[128];
+	GetCurrentDirectoryA(128, buf);
+	printf_s("Current dir: %s\n", buf);
+#endif // _DEBUG
+
+
+	FILE* file = NULL;
+	fopen_s(&file, fileName, "r");
 	if (file) {
 		PrintFile(file);
 		return;
 	}
 
-	NodeFile nodeFile;
+	NodeFile* nodeFile;
 	for (size_t i = 0; i < filePool->size; i++) {
-		nodeFile = *((NodeFile *) getVal(filePool, i));
-		if (strcmp(nodeFile.name, fileName) == 0) {
-			DownloadFile(nodeFile);
+		nodeFile = ((NodeFile*) getVal(filePool, i));
+		if (nodeFile != NULL && strcmp(nodeFile->name, fileName) == 0) {
+			DownloadFile(*nodeFile);
 
 			file = NULL;
-			fopen_s(&file, filePath, "r");
+			fopen_s(&file, fileName, "r");
 			if (!file) {
-				printf_s("Cannot retrieve %s.\n", filePath);
+				printf_s("Cannot retrieve %s.\n", fileName);
 			}
 
 			PrintFile(file);
@@ -432,7 +432,7 @@ void RetrieveFile(char fileName[FILENAME_LEN]) {
 		}
 	}
 
-	printf_s("Cannot retrieve %s.\n", filePath);
+	printf_s("Cannot retrieve %s.\n", fileName);
 }
 
 DWORD WINAPI UserRepl(LPVOID lpParam) {
@@ -456,11 +456,17 @@ DWORD WINAPI UserRepl(LPVOID lpParam) {
 }
 
 int main() {
+	nodePool = newLinkedList();
+	filePool = newLinkedList();
+
+	ZeroMemory(sharedDir, sizeof(sharedDir));
+	sharedDir[0] = '\0';
 	printf_s("Files directory to share: ? ");
 	scanf_s("%s", sharedDir, MAX_DIRLEN);
+	printf_s("%d", SetCurrentDirectoryA(sharedDir));
 	printf_s("\n");
 
-	strcat_s(sharedDir, sizeof(sharedDir), "\\");
+	strcat_s(sharedDir, sizeof(sharedDir), "/");
 
 	char decided = 0;
 	while (!decided) {
@@ -469,6 +475,7 @@ int main() {
 		scanf_s("%s", ans, 4);
 		if (ans[0] == 'y' || ans[0] == 'Y') {
 			char addr[INET_ADDRSTRLEN];
+			addr[0] = '\0';
 			printf_s("IPv4 address: ? ");
 			scanf_s("%s", addr, INET_ADDRSTRLEN);
 			printf_s("\n");
@@ -482,6 +489,17 @@ int main() {
 				port = (int) strtoul(portBuf, NULL, 0);
 				printf_s("\n");
 			}
+
+			NetworkNode* node = HeapAlloc(GetProcessHeap(), 0, sizeof(NetworkNode));
+			if (!node) {
+				perror("Cannot add node (first connect).\n");
+				return -1;
+			}
+			strcpy_s(node->name, sizeof(node->name), addr);
+			strcpy_s(node->ipAddr, sizeof(node->ipAddr), addr);
+			node->port = port;
+			insertVal(nodePool, 0, node);
+
 			decided = 1;
 		} else if (ans[0] == 'n' || ans[0] == 'N') {
 			decided = 1;
@@ -489,9 +507,6 @@ int main() {
 			printf_s("Yes/No: ? ");
 		}
 	}
-
-	nodePool = newLinkedList();
-	filePool = newLinkedList();
 
 	mainPort = 5002;
 
@@ -505,12 +520,18 @@ int main() {
 	}
 
 	hListenerThread = CreateThread(NULL, 0, &IncomingHandler, NULL, 0, NULL);
+	hReplThread = CreateThread(NULL, 0, &UserRepl, NULL, 0, NULL);
 	if (hListenerThread == INVALID_HANDLE_VALUE || hListenerThread == 0) {
 		perror("Failed to start listener thread.\n");
 		return -1;
 	}
-	CreateThread(NULL, 0, &UserRepl, NULL, 0, NULL);
-	WaitForSingleObject(hListenerThread, INFINITE);
+	if (hReplThread == INVALID_HANDLE_VALUE || hReplThread == 0) {
+		perror("Failed to start repl thread.\n");
+		return -1;
+	}
+
+	HANDLE handles[] = { hListenerThread, hReplThread };
+	WaitForMultipleObjects(2, handles, TRUE, INFINITE);
 
 	WSACleanup();
 
